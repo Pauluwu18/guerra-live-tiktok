@@ -15,13 +15,13 @@ let toastTimer;
 function assetUrl(url) {
   if (!url) return '';
   if (/^https?:\/\//i.test(url)) return url;
-  // Si comienza con ./ o sin barra, resolver relativo a la ubicación actual
-  if (url.startsWith('./')) return url;
+  if (url.startsWith('./')) url = url.slice(2);
+  const base = window.location.pathname.replace(/\/index\.html$/i, '').replace(/\/$/, '');
+  if (base && (url === base || url.startsWith(base + '/'))) return url;
   if (url.startsWith('/')) {
-    const base = window.location.pathname.replace(/\/index\.html$/i, '').replace(/\/$/, '');
     return (base ? base : '') + url;
   }
-  return './' + url;
+  return (base ? base : '') + '/' + url;
 }
 
 
@@ -823,37 +823,29 @@ function playSynthSound(name, vol = 0.5) {
 
 // ── GESTIÓN DE SPRITES ANIMADOS (Pack Tiny RPG Soldado Básico) ────────────
 const spritePacks = {
-  walk:     { url: assetUrl('/assets/soldado-sheet.png'),    frames: 8, jade: null, coral: null, ready: false },
-  attack01: { url: assetUrl('/assets/soldado-attack01.png'), frames: 6, jade: null, coral: null, ready: false },
-  attack02: { url: assetUrl('/assets/soldado-attack02.png'), frames: 6, jade: null, coral: null, ready: false },
-  idle:     { url: assetUrl('/assets/soldado-idle.png'),     frames: 6, jade: null, coral: null, ready: false },
-  death:    { url: assetUrl('/assets/soldado-death.png'),    frames: 4, jade: null, coral: null, ready: false }
+  walk:     { url: 'assets/soldado-sheet.png',    frames: 8, jade: null, coral: null, ready: false },
+  attack01: { url: 'assets/soldado-attack01.png', frames: 6, jade: null, coral: null, ready: false },
+  attack02: { url: 'assets/soldado-attack02.png', frames: 6, jade: null, coral: null, ready: false },
+  idle:     { url: 'assets/soldado-idle.png',     frames: 6, jade: null, coral: null, ready: false },
+  death:    { url: 'assets/soldado-death.png',    frames: 4, jade: null, coral: null, ready: false }
 };
 
 // ── GESTIÓN DE SPRITES ANIMADOS (Pack Tiny RPG Caballero / Soldado Nivel 10) ──
 const knightPacks = {
-  walk:     { url: assetUrl('/assets/Knight_Walk.png'),     frames: 8,  jade: null, coral: null, ready: false },
-  attack01: { url: assetUrl('/assets/Knight_Attack01.png'), frames: 7,  jade: null, coral: null, ready: false },
-  attack02: { url: assetUrl('/assets/Knight_Attack02.png'), frames: 10, jade: null, coral: null, ready: false },
-  attack03: { url: assetUrl('/assets/Knight_Attack03.png'), frames: 11, jade: null, coral: null, ready: false },
-  idle:     { url: assetUrl('/assets/Knight_Idle.png'),     frames: 6,  jade: null, coral: null, ready: false },
-  death:    { url: assetUrl('/assets/Knight_Death.png'),    frames: 4,  jade: null, coral: null, ready: false },
-  hurt:     { url: assetUrl('/assets/Knight_Hurt.png'),     frames: 4,  jade: null, coral: null, ready: false },
-  block:    { url: assetUrl('/assets/Knight_Block.png'),    frames: 4,  jade: null, coral: null, ready: false }
+  walk:     { url: 'assets/Knight_Walk.png',     frames: 8,  jade: null, coral: null, ready: false },
+  attack01: { url: 'assets/Knight_Attack01.png', frames: 7,  jade: null, coral: null, ready: false },
+  attack02: { url: 'assets/Knight_Attack02.png', frames: 10, jade: null, coral: null, ready: false },
+  attack03: { url: 'assets/Knight_Attack03.png', frames: 11, jade: null, coral: null, ready: false },
+  idle:     { url: 'assets/Knight_Idle.png',     frames: 6,  jade: null, coral: null, ready: false },
+  death:    { url: 'assets/Knight_Death.png',    frames: 4,  jade: null, coral: null, ready: false },
+  hurt:     { url: 'assets/Knight_Hurt.png',     frames: 4,  jade: null, coral: null, ready: false },
+  block:    { url: 'assets/Knight_Block.png',    frames: 4,  jade: null, coral: null, ready: false }
 };
 
 function processSheetColors(img) {
   try {
     const w = img.naturalWidth || img.width || 600;
     const h = img.naturalHeight || img.height || 100;
-
-    // Jade (Original / Tonalidades esmeralda y acero)
-    const cJade = document.createElement('canvas');
-    cJade.width = w; cJade.height = h;
-    const ctxJ = cJade.getContext('2d');
-    ctxJ.drawImage(img, 0, 0);
-
-    // Coral (Tonalidades carmesí / coral brillante para el ejército rival)
     const cCoral = document.createElement('canvas');
     cCoral.width = w; cCoral.height = h;
     const ctxC = cCoral.getContext('2d');
@@ -863,17 +855,16 @@ function processSheetColors(img) {
     for (let i = 0; i < d.length; i += 4) {
       if (d[i + 3] < 15) continue;
       const r = d[i], g = d[i + 1], b = d[i + 2];
-      // Si el píxel tiene tonos azulados/verdosos de la armadura o capa
       if (g > 50 || b > 60) {
-        d[i]     = Math.min(255, Math.floor(Math.max(r, g, b) * 1.35 + 25)); // Rojo coral vivo
-        d[i + 1] = Math.floor(g * 0.35 + 10);                                 // Verde
-        d[i + 2] = Math.floor(b * 0.25);                                      // Azul
+        d[i]     = Math.min(255, Math.floor(Math.max(r, g, b) * 1.35 + 25));
+        d[i + 1] = Math.floor(g * 0.35 + 10);
+        d[i + 2] = Math.floor(b * 0.25);
       }
     }
     ctxC.putImageData(imgData, 0, 0);
-    return { jade: cJade, coral: cCoral, ready: true };
+    return { coral: cCoral };
   } catch {
-    return { jade: img, coral: img, ready: true };
+    return { coral: img };
   }
 }
 
@@ -889,9 +880,13 @@ function loadPack(key, dict = spritePacks) {
   if (!pack) return;
   const img = new Image();
   img.onload = () => {
-    const res = processSheetColors(img);
-    pack.jade = res.jade || img;
-    pack.coral = res.coral || img;
+    pack.jade = img;
+    try {
+      const res = processSheetColors(img);
+      pack.coral = res.coral || img;
+    } catch {
+      pack.coral = img;
+    }
     pack.ready = true;
     updateSpriteCredits();
   };
@@ -1637,7 +1632,7 @@ function soldier(ctx, p, t = Date.now(), mode = 'teams') {
 
   // 2. RENDERIZADO DEL SPRITE SHEET ANIMADO (Ataque, Caminar o Espera)
   const currentSheet = isJade ? currentPack.jade : currentPack.coral;
-  const imgSource = currentSheet || currentPack.jade;
+  const imgSource = currentSheet || currentPack.jade || currentPack.coral || spritePacks.walk.jade || knightPacks.walk.jade;
 
   if (imgSource) {
     ctx.save();
