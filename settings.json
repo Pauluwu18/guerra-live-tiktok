@@ -1,0 +1,73 @@
+{
+  "likesStep": 50,
+  "damagePercent": 2,
+  "healthGain": 2,
+  "baseHealth": 100,
+  "baseDamage": 10,
+  "armorGain": 25,
+  "armorCap": 100,
+  "bossHealth": 15000,
+  "bossDamage": 16,
+  "roundSeconds": 300,
+  "reviveHealth": 100,
+  "steelDamage": 16,
+  "royalDamage": 22,
+  "legendDamage": 28,
+  "magicDamage": 18,
+  "magicInterval": 4.5,
+  "meteorDamage": 90,
+  "shieldSeconds": 3,
+  "maxLikeLevels": 20,
+  "maxRevives": 3,
+  "maxShieldSeconds": 6,
+  "magicSeconds": 30,
+  "maxMagicSeconds": 60,
+  "frenzySeconds": 5,
+  "maxFrenzySeconds": 10,
+  "maxChampionWins": 10,
+  "winScore": 10000,
+  "autoFill": true,
+  "likeScope": "individual",
+  "rules": [
+    {
+      "gift": "Rose",
+      "action": "rose",
+      "quantity": 1
+    },
+    {
+      "gift": "Finger Heart",
+      "action": "armor",
+      "quantity": 1
+    },
+    {
+      "gift": "Doughnut",
+      "action": "revive",
+      "quantity": 1
+    },
+    {
+      "gift": "Hand Heart",
+      "action": "steel",
+      "quantity": 1
+    },
+    {
+      "gift": "Sunglasses",
+      "action": "royal",
+      "quantity": 1
+    },
+    {
+      "gift": "Perfume",
+      "action": "magic",
+      "quantity": 1
+    },
+    {
+      "gift": "GG",
+      "action": "shield",
+      "quantity": 10
+    },
+    {
+      "gift": "Galaxy",
+      "action": "meteor",
+      "quantity": 1
+    }
+  ]
+}

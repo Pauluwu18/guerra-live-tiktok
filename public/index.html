@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>GUERRA MEDIEVAL LIVE · Juego Interactivo TikTok</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath fill='%23c6fc65' d='M4 4h24v17L16 30 4 21z'/%3E%3Cpath fill='%23131d18' d='M9 10h14v4H9zm5 4h4v9h-4z'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<header>
+  <a class="brand" href="./">
+    ▣ <span>GUERRA<span class="lime">LIVE</span></span>
+    <small>RPG MEDIEVAL 2D · TIKTOK INTERACTIVO</small>
+  </a>
+  <div class="topright">
+    <span id="status" class="status">● MODO DE PRUEBA</span>
+    <button id="settingsTop" class="quiet">⚙ Ajustes</button>
+  </div>
+</header>
+
+<main id="app">
+
+  <!-- PANTALLA 1: MENÚ PRINCIPAL -->
+  <section id="menu" class="screen">
+    <div class="eyebrow">CAMPO DE GUERRA MEDIEVAL 2D · VISTA AÉREA</div>
+    <div class="menu-layout">
+      <div>
+        <h1>ESPADA.<br>ARMADURA.<br><em>TU GUERRA.</em></h1>
+        <p class="intro">
+          Guerra medieval interactiva para TikTok LIVE. Los espectadores ascienden con rosas, mejoran con likes, equipan espadas y activan habilidades temporales. Costes y límites visibles para ambos bandos.
+        </p>
+        <div class="menu-actions">
+          <button id="play" class="primary">JUGAR <span>⚔</span></button>
+          <button id="settingsMenu">AJUSTES <span>⚙</span></button>
+        </div>
+        <div class="menu-note">
+          <span class="dot"></span> Vista aérea 2D <span> / </span> Sprites MediBang <span> / </span> 20 vs 20 · Duelo · Torre del Jefe
+        </div>
+      </div>
+      <div class="preview">
+        <canvas id="preview" width="700" height="540"></canvas>
+        <div class="preview-label">
+          <b>CAMPO DE GUERRA</b>
+          <span>ARENA MEDIEVAL EN VIVO</span>
+        </div>
+        <div class="preview-badge">
+          ⚔<br><small>SIMULACIÓN<br>EN VIVO</small>
+        </div>
+      </div>
+    </div>
+    <footer>
+      <span>01 / MODOS DE JUEGO</span>
+      <span>Escribe <b>!jugar</b>, <b>!jade</b> o <b>!coral</b> en el chat para combatir</span>
+    </footer>
+  </section>
+
+  <!-- PANTALLA 2: SELECCIÓN DE MODOS DE JUEGO -->
+  <section id="modes" class="screen hidden">
+    <div class="eyebrow">MODOS DE JUEGO</div>
+    <h2>Selecciona la batalla<span class="lime">.</span></h2>
+    <div class="mode-grid">
+      <button class="mode-card" data-mode="teams">
+        <span class="mode-no">MODO 01 / DOS EJÉRCITOS</span>
+        <div class="mode-symbol">20 <i>VS</i> 20</div>
+        <h3>Guerra de Facciones (20 vs 20)</h3>
+        <p>Dos ejércitos de 20 caballeros cada uno (Jade vs Coral). Los espectadores mejoran a sus tropas con likes y regalos. ¡El primer ejército en llegar a 10 000 puntos gana la guerra!</p>
+        <span class="mode-cta">INICIAR GUERRA 20 VS 20 ↗</span>
+      </button>
+
+      <button class="mode-card duel-card" data-mode="duel">
+        <span class="mode-no">MODO 02 / ¡NUEVO! PRIMER PLANO</span>
+        <div class="mode-symbol">1 <i>VS</i> 1</div>
+        <h3>Duelo de Campeones (1 vs 1)</h3>
+        <p>Arena íntima en primer plano con cámara cercana. 1 Campeón Jade vs 1 Campeón Coral cara a cara. Todo el chat apoya a su campeón con likes, armas legendarias y meteoritos.</p>
+        <span class="mode-cta">INICIAR DUELO 1 VS 1 ↗</span>
+      </button>
+
+      <button class="mode-card boss-card" data-mode="boss">
+        <span class="mode-no">MODO 03 / COOPERATIVO</span>
+        <div class="mode-symbol">⚔ <i>VS</i> 🏰</div>
+        <h3>Jugadores vs Torre del Jefe</h3>
+        <p>Todos los espectadores unen fuerzas en el bando Jade para asediar y derribar la Torre del Jefe Demonio antes de que se agote el tiempo.</p>
+        <span class="mode-cta">ASALTAR LA TORRE DEL JEFE ↗</span>
+      </button>
+    </div>
+    <button class="back">← Volver al menú</button>
+  </section>
+
+  <!-- PANTALLA 3: CAMPO DE BATALLA -->
+  <section id="battle" class="screen hidden">
+    <div class="battle-bar">
+      <div>
+        <div class="eyebrow" id="mission">MISIÓN / GUERRA 20 VS 20</div>
+        <h2 id="score">JADE 20 <span>VS</span> 20 CORAL</h2>
+      </div>
+      <div class="battle-buttons">
+        <b id="timer">05:00</b>
+        <button id="toggleSound">🔊 Sonido: ON</button>
+        <button id="pause">Ⅱ Pausar</button>
+        <button id="copyBattle">Copiar vista OBS</button>
+        <button id="exit">Menú</button>
+      </div>
+    </div>
+    <!-- BARRA DE PUNTOS DE GUERRA -->
+    <div class="war-score-wrap">
+      <span class="war-label jade-label">⚔ JADE <b id="scoreJade">0</b></span>
+      <div class="war-bar">
+        <div class="war-fill jade-fill" id="fillJade" style="width:0%"></div>
+        <div class="war-fill coral-fill" id="fillCoral" style="width:0%; margin-left:auto"></div>
+      </div>
+      <span class="war-label coral-label"><b id="scoreCoral">0</b> CORAL ⚔</span>
+      <span class="war-round" id="warRound">Ronda 1</span>
+    </div>
+
+    <div class="battle-layout">
+      <div class="arena-wrap">
+        <canvas id="arena" width="1200" height="760" aria-label="Campo de batalla medieval en 2D con vista aérea"></canvas>
+        <div id="result" class="hidden">
+          <h2></h2>
+          <button id="again" class="primary">Nueva Batalla ⚔</button>
+        </div>
+        <div class="arena-foot">
+          <span>W A S D / MOVER CABALLERO SELECCIONADO</span>
+          <span>COMBATE AUTOMÁTICO · CLIC PARA INSPECCIONAR GUERRERO</span>
+        </div>
+      </div>
+
+      <aside>
+        <div class="panel">
+          <div class="eyebrow">CABALLERO SELECCIONADO</div>
+          <div id="playerStats">Haz clic en un guerrero en el campo</div>
+        </div>
+        <div class="panel">
+          <div class="eyebrow">CANJES ACTIVOS</div>
+          <div id="rewards"></div>
+        </div>
+        <div class="panel">
+          <div class="eyebrow">CRÓNICA DE GUERRA</div>
+          <div id="feed"></div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- LABORATORIO DE PRUEBAS / SIMULADOR -->
+    <details class="sim" open>
+      <summary>Laboratorio de Pruebas Offline <span>Simula likes y regalos sin gastar dinero real</span></summary>
+      <div class="sim-controls">
+        <label>
+          Jugador
+          <input id="simUser" value="pandamiuk01" maxlength="30">
+        </label>
+        <label>
+          Ejército
+          <select id="simTeam">
+            <option value="0">Jade (Verde)</option>
+            <option value="1">Coral (Rojo)</option>
+          </select>
+        </label>
+        <button id="join">Unirse</button>
+        <button id="like">♥ Enviar likes</button>
+      </div>
+      <div class="sim-gift-panel">
+        <div class="sim-gift-fields">
+          <label>Buscar regalo
+            <input id="simGiftSearch" type="search" placeholder="Rose, Galaxy, Lion…" autocomplete="off">
+          </label>
+          <label>Regalo del catálogo
+            <select id="simGift" aria-describedby="simGiftCount"></select>
+          </label>
+          <small id="simGiftCount" aria-live="polite"></small>
+        </div>
+        <div id="simGiftPreview" class="sim-gift-preview"></div>
+      </div>
+      <div class="sim-controls sim-send-controls">
+        <label>
+          Cantidad
+          <input id="simCount" type="number" min="1" max="100000" value="1">
+        </label>
+        <div class="quantity-presets" aria-label="Cantidades rápidas">
+          <button type="button" data-quantity="1">×1</button>
+          <button type="button" data-quantity="5">×5</button>
+          <button type="button" data-quantity="10">×10</button>
+          <button type="button" data-quantity="20">×20</button>
+          <button type="button" data-quantity="100">×100</button>
+        </div>
+        <button id="gift" class="primary">Simular regalo</button>
+        <button id="simConfigure">Configurar canje</button>
+        <button id="simStart" hidden>Iniciar prueba 20 vs 20</button>
+      </div>
+      <p id="simFeedback" class="sim-feedback" role="status">Prueba cualquier regalo. Los que no tengan canje se registran sin modificar el combate.</p>
+    </details>
+  </section>
+
+  <!-- PANTALLA 4: AJUSTES Y CONFIGURACIÓN -->
+  <section id="settings" class="screen hidden">
+    <div class="settings-heading">
+      <div>
+        <div class="eyebrow">PANEL DE CONTROL</div>
+        <h2>Ajustes de Partida y Canjes<span class="lime">.</span></h2>
+      </div>
+      <button class="back">← Menú</button>
+    </div>
+
+    <div class="settings-grid">
+      <div>
+        <section class="panel">
+          <h3>01 / Likes y Progresión</h3>
+          <p>Base equilibrada: 50 likes = +2% de daño y +2 de vida, hasta 20 bloques. En modo ejército, el coste se multiplica por las plazas del bando (20, o 30 contra la torre).</p>
+          <div id="progressFields" class="fields"></div>
+          <label>
+            Aplicar mejoras de likes a:
+            <select id="likeScope">
+              <option value="individual">El espectador que envió los likes</option>
+              <option value="team">Todo su ejército completo</option>
+            </select>
+          </label>
+        </section>
+
+        <section class="panel">
+          <h3>02 / Espadas, Armaduras y Combate</h3>
+          <div id="combatFields" class="fields"></div>
+          <label class="check">
+            <input id="autoFill" type="checkbox"> Rellenar plazas con bots iniciales (los espectadores los reemplazan al unirse)
+          </label>
+          <p>Las mejoras y canjes se aplican al instante durante la partida. La vida base se aplica al iniciar una nueva partida; la torre se actualiza en la siguiente ronda.</p>
+        </section>
+
+        <section class="panel">
+          <h3>03 / Mapeo de Regalos TikTok → Recompensas</h3>
+          <p>20 Rose: nivel 10 (+2 daño y defensa; cura si está vivo). Cada 10 extra: frenesí temporal. Las espadas, el nivel y las reservas se conservan durante la guerra. El escudo y la armadura se reinician cada ronda. Al llegar a un límite, los regalos extra no añaden poder ni se guardan para después. Las espadas repetidas no se acumulan. El escudo requiere 6s de recarga después de agotarse: los canjes durante la recarga no lo reactivan.</p>
+          <div class="rule-head">
+            <span>Regalo</span>
+            <span>Cantidad</span>
+            <span>Recompensa</span>
+            <span></span>
+          </div>
+          <div id="rules"></div>
+          <button id="addRule">+ Añadir Nuevo Canje</button>
+          <datalist id="giftNames"></datalist>
+        </section>
+
+        <section class="panel">
+          <h3>04 / Efectos de Sonido (MyInstants / Espadas)</h3>
+          <p>Efectos de sonido de espadas, choques metálicos y habilidades inspirados en MyInstants. Prueba cada sonido o busca nuevos en la biblioteca.</p>
+          <div class="sound-grid">
+            <button class="sound-btn" data-sound="slash">⚔️ Espada Corte</button>
+            <button class="sound-btn" data-sound="clash">💥 Choque Espadas</button>
+            <button class="sound-btn" data-sound="hit">🛡️ Impacto Golpe</button>
+            <button class="sound-btn" data-sound="magic">🔮 Pulso Mágico</button>
+            <button class="sound-btn" data-sound="meteor">☄️ Meteorito</button>
+            <button class="sound-btn" data-sound="horn">📯 Fanfarria / Cuerno</button>
+            <button class="sound-btn" data-sound="entrar">👑 Entrada Espectador</button>
+          </div>
+          <div class="row" style="margin-top:15px">
+            <a class="button" href="https://www.myinstants.com/es/search/?name=espada" target="_blank" rel="noopener noreferrer">🔍 Explorar más sonidos en MyInstants ↗</a>
+          </div>
+        </section>
+
+        <div class="sticky-save">
+          <button id="save" class="primary">Guardar Ajustes ✓</button>
+          <button id="reset">Restaurar Valores por Defecto</button>
+          <span id="saveStatus" aria-live="polite"></span>
+        </div>
+      </div>
+
+      <div>
+        <section class="panel">
+          <h3>Conexión con TikTok LIVE</h3>
+          <label>
+            Tu Usuario de TikTok (sin @)
+            <input id="liveUser" value="pandamiuk01">
+          </label>
+          <div class="row">
+            <button id="connect" class="primary">Conectar al LIVE</button>
+            <button id="disconnect">Desconectar</button>
+          </div>
+          <p id="liveDetails">Sin conexión activa</p>
+          <small>El conector escucha eventos en tiempo real cuando inicias tu transmisión en vivo.</small>
+          <div class="commands">
+            <b>!jugar</b> entrar · <b>!jade</b> ejército Jade · <b>!coral</b> ejército Coral
+          </div>
+        </section>
+
+        <section class="panel">
+          <h3>Overlay Transparente para OBS / TikTok Live Studio</h3>
+          <p>Copia esta URL y agrégala como <b>Fuente de Navegador</b> en OBS o TikTok Live Studio con fondo transparente (430 × 800 px).</p>
+          <div class="row">
+            <button id="copyOverlay" class="primary">Copiar Overlay ↗</button>
+            <button id="openOverlay">Abrir Overlay</button>
+          </div>
+          <div id="overlayPreview"></div>
+          <textarea id="copyFallback" class="hidden" readonly aria-label="Dirección para copiar manualmente"></textarea>
+        </section>
+
+        <section class="panel">
+          <h3>Catálogo Completo de Regalos TikTok</h3>
+          <p id="catalogInfo">Cargando catálogo de referencia…</p>
+          <label>
+            Buscar regalo por nombre:
+            <input id="searchGift" placeholder="Rose, Galaxy, Lion, Doughnut…">
+          </label>
+          <div class="catalog-tools">
+            <label>Ordenar regalos
+              <select id="catalogSort"><option value="coins">Menor coste</option><option value="expensive">Mayor coste</option><option value="name">Nombre A–Z</option></select>
+            </label>
+            <label class="check"><input id="catalogMapped" type="checkbox"> Solo con canje</label>
+          </div>
+          <div class="row">
+            <button id="refreshCatalog">Consultar Regalos de mi LIVE</button>
+            <a class="button" href="gifts.json" download="regalos-tiktok.json">Descargar Lista JSON</a>
+          </div>
+          <div id="catalogList"></div>
+          <nav class="catalog-pagination" aria-label="Páginas de regalos">
+            <button id="catalogPrev" type="button">← Anterior</button>
+            <span id="catalogPage" aria-live="polite"></span>
+            <button id="catalogNext" type="button">Siguiente →</button>
+          </nav>
+          <small>Precios orientativos del catálogo local. Consulta tu LIVE para confirmar los regalos y sus monedas; el juego no modifica los precios de TikTok.</small>
+        </section>
+
+        <section class="panel">
+          <h3>Sprites 2D / MediBang Paint (medypaint)</h3>
+          <p>
+            El juego utiliza sprites 2D con vista aérea. Puedes abrir el archivo <b>soldado-medibang.mdp</b> en <b>MediBang Paint Pro</b> para personalizar capas de armadura, escudo, espada y yelmo, y exportar a <b>public/assets/soldado.png</b> (PNG transparente de 64×64 o 128×128).
+          </p>
+          <div id="spriteCredits"></div>
+        </section>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div id="toast" role="status"></div>
+
+<script type="module" src="app.mjs?v=3"></script>
+</body>
+</html>
