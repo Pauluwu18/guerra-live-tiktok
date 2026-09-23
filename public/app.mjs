@@ -15,11 +15,13 @@ let toastTimer;
 function assetUrl(url) {
   if (!url) return '';
   if (/^https?:\/\//i.test(url)) return url;
+  // Si comienza con ./ o sin barra, resolver relativo a la ubicación actual
+  if (url.startsWith('./')) return url;
   if (url.startsWith('/')) {
     const base = window.location.pathname.replace(/\/index\.html$/i, '').replace(/\/$/, '');
     return (base ? base : '') + url;
   }
-  return url;
+  return './' + url;
 }
 
 
@@ -821,23 +823,23 @@ function playSynthSound(name, vol = 0.5) {
 
 // ── GESTIÓN DE SPRITES ANIMADOS (Pack Tiny RPG Soldado Básico) ────────────
 const spritePacks = {
-  walk:     { url: '/assets/soldado-sheet.png',    frames: 8, jade: null, coral: null, ready: false },
-  attack01: { url: '/assets/soldado-attack01.png', frames: 6, jade: null, coral: null, ready: false },
-  attack02: { url: '/assets/soldado-attack02.png', frames: 6, jade: null, coral: null, ready: false },
-  idle:     { url: '/assets/soldado-idle.png',     frames: 6, jade: null, coral: null, ready: false },
-  death:    { url: '/assets/soldado-death.png',    frames: 4, jade: null, coral: null, ready: false }
+  walk:     { url: assetUrl('/assets/soldado-sheet.png'),    frames: 8, jade: null, coral: null, ready: false },
+  attack01: { url: assetUrl('/assets/soldado-attack01.png'), frames: 6, jade: null, coral: null, ready: false },
+  attack02: { url: assetUrl('/assets/soldado-attack02.png'), frames: 6, jade: null, coral: null, ready: false },
+  idle:     { url: assetUrl('/assets/soldado-idle.png'),     frames: 6, jade: null, coral: null, ready: false },
+  death:    { url: assetUrl('/assets/soldado-death.png'),    frames: 4, jade: null, coral: null, ready: false }
 };
 
 // ── GESTIÓN DE SPRITES ANIMADOS (Pack Tiny RPG Caballero / Soldado Nivel 10) ──
 const knightPacks = {
-  walk:     { url: '/assets/Knight_Walk.png',     frames: 8,  jade: null, coral: null, ready: false },
-  attack01: { url: '/assets/Knight_Attack01.png', frames: 7,  jade: null, coral: null, ready: false },
-  attack02: { url: '/assets/Knight_Attack02.png', frames: 10, jade: null, coral: null, ready: false },
-  attack03: { url: '/assets/Knight_Attack03.png', frames: 11, jade: null, coral: null, ready: false },
-  idle:     { url: '/assets/Knight_Idle.png',     frames: 6,  jade: null, coral: null, ready: false },
-  death:    { url: '/assets/Knight_Death.png',    frames: 4,  jade: null, coral: null, ready: false },
-  hurt:     { url: '/assets/Knight_Hurt.png',     frames: 4,  jade: null, coral: null, ready: false },
-  block:    { url: '/assets/Knight_Block.png',    frames: 4,  jade: null, coral: null, ready: false }
+  walk:     { url: assetUrl('/assets/Knight_Walk.png'),     frames: 8,  jade: null, coral: null, ready: false },
+  attack01: { url: assetUrl('/assets/Knight_Attack01.png'), frames: 7,  jade: null, coral: null, ready: false },
+  attack02: { url: assetUrl('/assets/Knight_Attack02.png'), frames: 10, jade: null, coral: null, ready: false },
+  attack03: { url: assetUrl('/assets/Knight_Attack03.png'), frames: 11, jade: null, coral: null, ready: false },
+  idle:     { url: assetUrl('/assets/Knight_Idle.png'),     frames: 6,  jade: null, coral: null, ready: false },
+  death:    { url: assetUrl('/assets/Knight_Death.png'),    frames: 4,  jade: null, coral: null, ready: false },
+  hurt:     { url: assetUrl('/assets/Knight_Hurt.png'),     frames: 4,  jade: null, coral: null, ready: false },
+  block:    { url: assetUrl('/assets/Knight_Block.png'),    frames: 4,  jade: null, coral: null, ready: false }
 };
 
 function processSheetColors(img) {
@@ -871,7 +873,7 @@ function processSheetColors(img) {
     ctxC.putImageData(imgData, 0, 0);
     return { jade: cJade, coral: cCoral, ready: true };
   } catch {
-    return { jade: img, coral: img, ready: false };
+    return { jade: img, coral: img, ready: true };
   }
 }
 
@@ -888,19 +890,20 @@ function loadPack(key, dict = spritePacks) {
   const img = new Image();
   img.onload = () => {
     const res = processSheetColors(img);
-    pack.jade = res.jade;
-    pack.coral = res.coral;
+    pack.jade = res.jade || img;
+    pack.coral = res.coral || img;
     pack.ready = true;
     updateSpriteCredits();
   };
-  img.onerror = () => {
+  img.onerror = (e) => {
+    console.error('Error cargando sprite:', pack.url, e);
     if (key !== 'walk' && dict.walk?.ready) {
       pack.jade = dict.walk.jade;
       pack.coral = dict.walk.coral;
       pack.ready = true;
     }
   };
-  img.src = pack.url;
+  img.src = assetUrl(pack.url);
 }
 
 if (!overlay) {
