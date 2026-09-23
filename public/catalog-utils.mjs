@@ -21,3 +21,4 @@ export function safeImage(gift) {
   const image=gift?.image || gift?.imageUrl || '';
   return /^\/assets\/gifts\/[a-zA-Z0-9_.-]+$/.test(image) || /^https:\/\//i.test(image) ? image : '/assets/gifts/unavailable.svg';
 }
+

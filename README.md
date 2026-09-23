@@ -74,3 +74,4 @@ npm start
 * **Servidor V8**: Configurado con `--max-old-space-size=128 --optimize-for-size`, limitando la memoria privada a tan solo **~41 MB**.
 * **Zero-Allocation Engine**: Bucle de efectos in-place y reutilización de mapas para evitar saturación de la memoria en transmisiones prolongadas.
 * **Modo Web Autónomo**: En GitHub Pages, el motor corre directamente dentro del navegador del usuario sin requerir servidor backend.
+
