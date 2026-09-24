@@ -1238,85 +1238,86 @@ function renderStaticColosseum(ctx, w, h) {
 function renderStaticDuelPit(ctx, w, h) {
   const sx = w / 1200, sy = h / 760;
   const floorY = 590 * sy;
+  const curveY = x => {
+    const t=x/1200;
+    return ((1-t)*(1-t)*72 + 2*(1-t)*t*315 + t*t*72) * sy;
+  };
 
-  // Cielo de torneo intenso: violeta, azul y carmesí para dar más color sin
-  // perder el contraste de los combatientes.
-  const sky = ctx.createLinearGradient(0, 0, 0, floorY);
-  sky.addColorStop(0, '#101456');
-  sky.addColorStop(0.38, '#432064');
-  sky.addColorStop(0.72, '#a92f62');
-  sky.addColorStop(1, '#ef7137');
-  ctx.fillStyle = sky; ctx.fillRect(0, 0, w, floorY);
-  for (let i=0;i<42;i++) {
-    const starX=((i*197+43)%1160+20)*sx, starY=((i*83+17)%270+38)*sy;
-    circle(ctx,starX,starY,(i%3?1.2:2.1)*sx,i%5===0?'#73e7ff':'#ffe6a3');
-  }
-  const eclipse = ctx.createRadialGradient(600*sx, 210*sy, 12*sx, 600*sx, 210*sy, 105*sx);
-  eclipse.addColorStop(0, '#16112f'); eclipse.addColorStop(0.56, '#21113b');
-  eclipse.addColorStop(0.62, '#ffe45b'); eclipse.addColorStop(0.69, '#ff6e3a');
-  eclipse.addColorStop(0.78, 'rgba(255,47,151,.42)'); eclipse.addColorStop(1, 'rgba(77,38,180,0)');
-  ctx.fillStyle = eclipse; ctx.fillRect(450*sx, 55*sy, 300*sx, 310*sy);
-
-  // Montañas y fortaleza en silueta, construidas una sola vez en el caché.
-  ctx.fillStyle = '#241b58';
-  ctx.beginPath(); ctx.moveTo(0,floorY); ctx.lineTo(0,350*sy); ctx.lineTo(130*sx,230*sy);
-  ctx.lineTo(240*sx,365*sy); ctx.lineTo(390*sx,205*sy); ctx.lineTo(530*sx,360*sy);
-  ctx.lineTo(720*sx,190*sy); ctx.lineTo(880*sx,350*sy); ctx.lineTo(1040*sx,220*sy);
-  ctx.lineTo(w,350*sy); ctx.lineTo(w,floorY); ctx.closePath(); ctx.fill();
-
-  const fortress = ctx.createLinearGradient(0,260*sy,0,525*sy);
-  fortress.addColorStop(0,'#493365'); fortress.addColorStop(.55,'#292044'); fortress.addColorStop(1,'#15152b');
-  ctx.fillStyle = fortress;
-  ctx.fillRect(180*sx, 300*sy, 840*sx, 225*sy);
-  for (let x = 205; x <= 995; x += 79) {
-    ctx.fillRect(x*sx, 258*sy, 43*sx, 267*sy);
-    ctx.beginPath(); ctx.moveTo(x*sx,258*sy); ctx.lineTo((x+21.5)*sx,225*sy); ctx.lineTo((x+43)*sx,258*sy); ctx.fill();
-  }
-  // Galería de arcos con público en contraluz.
-  for (let x = 235; x <= 920; x += 98) {
-    ctx.fillStyle = '#0a1024';
-    ctx.beginPath(); ctx.arc((x+32)*sx,390*sy,32*sx,Math.PI,0); ctx.lineTo((x+64)*sx,505*sy); ctx.lineTo(x*sx,505*sy); ctx.closePath(); ctx.fill();
-    const crowd=['#65e6ff','#ffcf4c','#ff5b8d','#73ff8d','#b77cff'];
-    for (let i=0;i<5;i++) circle(ctx,(x+8+i*12)*sx,(450+(i%2)*7)*sy,5*sx,crowd[(i+x)%crowd.length]);
+  // Cielo mediterráneo luminoso con nubes amplias.
+  const sky=ctx.createLinearGradient(0,0,0,floorY);
+  sky.addColorStop(0,'#61c9ff'); sky.addColorStop(.58,'#a8e5ff'); sky.addColorStop(1,'#fff1c7');
+  ctx.fillStyle=sky; ctx.fillRect(0,0,w,floorY);
+  ctx.fillStyle='rgba(255,255,255,.88)';
+  for(const [x,y,r] of [[75,72,62],[155,82,82],[265,65,68],[840,64,86],[960,78,70],[1090,52,90]]) {
+    circle(ctx,x*sx,y*sy,r*sx,'rgba(255,255,255,.88)');
+    circle(ctx,(x+48)*sx,(y+22)*sy,r*.72*sx,'rgba(255,255,255,.88)');
   }
 
-  // Guirnaldas y pendones de torneo sobre las gradas.
-  ctx.strokeStyle='rgba(255,225,130,.72)'; ctx.lineWidth=2*sx;
-  ctx.beginPath(); ctx.moveTo(165*sx,286*sy); ctx.quadraticCurveTo(600*sx,350*sy,1035*sx,286*sy); ctx.stroke();
-  const pennants=['#23d8c3','#ffd447','#ff526f','#8b6dff'];
-  for(let i=0;i<13;i++) {
-    const px=(205+i*66)*sx, py=(299+Math.abs(6-i)*4.1)*sy;
-    ctx.fillStyle=pennants[i%pennants.length];
-    ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo((px+24*sx),py); ctx.lineTo((px+12*sx),(py+28*sy)); ctx.closePath(); ctx.fill();
+  // Cuerpo curvo del coliseo, distinto a la arena nocturna anterior.
+  const stone=ctx.createLinearGradient(0,90*sy,0,550*sy);
+  stone.addColorStop(0,'#fff9e8'); stone.addColorStop(.55,'#ead9be'); stone.addColorStop(1,'#c9a878');
+  ctx.fillStyle=stone;
+  ctx.beginPath(); ctx.moveTo(0,curveY(0)); ctx.quadraticCurveTo(600*sx,315*sy,w,curveY(1200));
+  ctx.lineTo(w,535*sy); ctx.lineTo(0,535*sy); ctx.closePath(); ctx.fill();
+
+  // Cornisa superior naranja y refuerzo oscuro bajo el borde.
+  ctx.strokeStyle='#33213f'; ctx.lineWidth=30*sy;
+  ctx.beginPath(); ctx.moveTo(0,curveY(0)+17*sy); ctx.quadraticCurveTo(600*sx,332*sy,w,curveY(1200)+17*sy); ctx.stroke();
+  ctx.strokeStyle='#ff8b24'; ctx.lineWidth=14*sy;
+  ctx.beginPath(); ctx.moveTo(0,curveY(0)); ctx.quadraticCurveTo(600*sx,315*sy,w,curveY(1200)); ctx.stroke();
+
+  // Soportes radiales y ventanales altos.
+  ctx.strokeStyle='#8f785f'; ctx.lineWidth=3*sx;
+  for(let x=55;x<1200;x+=92) {
+    const top=curveY(x)+10*sy;
+    ctx.beginPath(); ctx.moveTo(x*sx,top); ctx.lineTo((x+(x<600?-16:16))*sx,335*sy); ctx.stroke();
+    ctx.fillStyle='#fff8ed'; ctx.fillRect((x-8)*sx,(top+54*sy),16*sx,72*sy);
   }
 
-  // Estandartes de las dos facciones.
-  for (const [x, color, edge, mark] of [[205,'#087e65','#8dffcf','JADE'],[925,'#b51f55','#ff9bbb','CORAL']]) {
-    ctx.fillStyle=color; ctx.fillRect(x*sx,300*sy,70*sx,142*sy);
-    ctx.strokeStyle=edge; ctx.lineWidth=3*sx; ctx.strokeRect(x*sx,300*sy,70*sx,142*sy);
+  // Dos niveles de graderías con líneas blancas y público multicolor.
+  for(const [y,control] of [[322,465],[405,515]]) {
+    ctx.strokeStyle='#fffdf4'; ctx.lineWidth=12*sy;
+    ctx.beginPath(); ctx.moveTo(0,y*sy); ctx.quadraticCurveTo(600*sx,control*sy,w,y*sy); ctx.stroke();
+  }
+  const crowd=['#16a6a0','#f5b82e','#e84c61','#7357c8','#2787cf','#55a84d'];
+  for(let i=0;i<94;i++) {
+    const x=(20+i*12.6)*sx;
+    const arch=365+78*(1-Math.pow((i-46.5)/47,2));
+    circle(ctx,x,arch*sy,4.3*sx,crowd[i%crowd.length]);
+  }
+
+  // Fachada central y accesos de gladiadores.
+  ctx.fillStyle='#f6ead4'; ctx.fillRect(365*sx,350*sy,470*sx,190*sy);
+  ctx.strokeStyle='#ee8426'; ctx.lineWidth=9*sx; ctx.strokeRect(365*sx,350*sy,470*sx,190*sy);
+  const gate=(cx,base,radius,height)=>{
+    ctx.fillStyle='#281d2c';
+    ctx.beginPath(); ctx.arc(cx*sx,(base-height+radius)*sy,radius*sx,Math.PI,0);
+    ctx.lineTo((cx+radius)*sx,base*sy); ctx.lineTo((cx-radius)*sx,base*sy); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='#ff972e'; ctx.lineWidth=7*sx; ctx.stroke();
+    ctx.strokeStyle='rgba(255,245,222,.7)'; ctx.lineWidth=2*sx;
+    for(let gx=cx-radius+12;gx<cx+radius;gx+=18){ctx.beginPath();ctx.moveTo(gx*sx,(base-height+radius)*sy);ctx.lineTo(gx*sx,base*sy);ctx.stroke();}
+    for(let gy=base-height+radius;gy<base;gy+=22){ctx.beginPath();ctx.moveTo((cx-radius)*sx,gy*sy);ctx.lineTo((cx+radius)*sx,gy*sy);ctx.stroke();}
+  };
+  gate(600,540,72,154); gate(435,540,42,102); gate(765,540,42,102);
+
+  // Estandartes vivos a ambos lados de la puerta central.
+  for(const [x,color,edge,mark] of [[250,'#078f72','#8dffcf','JADE'],[880,'#d62f52','#ffd0a0','CORAL']]) {
+    ctx.fillStyle=color; ctx.fillRect(x*sx,350*sy,70*sx,140*sy);
+    ctx.strokeStyle=edge; ctx.lineWidth=5*sx; ctx.strokeRect(x*sx,350*sy,70*sx,140*sy);
     ctx.fillStyle=edge; ctx.font=`900 ${Math.round(17*sx)}px sans-serif`; ctx.textAlign='center';
-    ctx.fillText(mark,(x+35)*sx,375*sy);
+    ctx.fillText(mark,(x+35)*sx,424*sy);
   }
 
-  // Piso de piedra frontal con línea de combate totalmente horizontal.
-  const floor = ctx.createLinearGradient(0, floorY-85*sy, 0, h);
-  floor.addColorStop(0,'#77638f'); floor.addColorStop(.12,'#3c3155'); floor.addColorStop(.55,'#181c39'); floor.addColorStop(1,'#090b20');
-  ctx.fillStyle=floor; ctx.fillRect(0,floorY-85*sy,w,h-floorY+85*sy);
-  ctx.strokeStyle='#ffd260'; ctx.lineWidth=4*sy;
-  ctx.beginPath(); ctx.moveTo(0,floorY+8*sy); ctx.lineTo(w,floorY+8*sy); ctx.stroke();
-  ctx.strokeStyle='rgba(104,220,255,.24)'; ctx.lineWidth=2;
-  for (let y=630;y<760;y+=42) { ctx.beginPath(); ctx.moveTo(0,y*sy); ctx.lineTo(w,y*sy); ctx.stroke(); }
-  for (let x=-100;x<1300;x+=105) { ctx.beginPath(); ctx.moveTo(600*sx,floorY-75*sy); ctx.lineTo(x*sx,h); ctx.stroke(); }
-  ctx.fillStyle='rgba(224,35,92,.30)';
-  ctx.beginPath(); ctx.ellipse(600*sx,620*sy,78*sx,18*sy,0,0,Math.PI*2); ctx.fill();
-
-  // Columnas y braseros frontales enmarcan la pelea.
-  for (const x of [105,1095]) {
-    ctx.fillStyle='#222450'; ctx.fillRect((x-27)*sx,320*sy,54*sx,275*sy);
-    ctx.fillStyle=x<600?'#159b91':'#a82e6c'; ctx.fillRect((x-34)*sx,330*sy,68*sx,18*sy);
-    ctx.fillRect((x-42)*sx,565*sy,84*sx,30*sy);
-    ctx.fillStyle='#31213f'; ctx.beginPath(); ctx.ellipse(x*sx,430*sy,42*sx,14*sy,0,0,Math.PI*2); ctx.fill();
-  }
+  // Arena de arena cálida, limpia y horizontal para la pelea lateral.
+  const sand=ctx.createLinearGradient(0,505*sy,0,h);
+  sand.addColorStop(0,'#ffc65b'); sand.addColorStop(.3,'#f39a2f'); sand.addColorStop(1,'#cc6420');
+  ctx.fillStyle=sand; ctx.fillRect(0,505*sy,w,h-505*sy);
+  ctx.strokeStyle='#fff1a6'; ctx.lineWidth=4*sy;
+  ctx.beginPath(); ctx.moveTo(0,(floorY+7*sy)); ctx.lineTo(w,(floorY+7*sy)); ctx.stroke();
+  ctx.strokeStyle='rgba(157,72,24,.22)'; ctx.lineWidth=2;
+  for(let x=-100;x<1300;x+=100){ctx.beginPath();ctx.moveTo(600*sx,505*sy);ctx.lineTo(x*sx,h);ctx.stroke();}
+  ctx.fillStyle='rgba(135,48,28,.22)';
+  ctx.beginPath();ctx.ellipse(600*sx,625*sy,94*sx,22*sy,0,0,Math.PI*2);ctx.fill();
   ctx.textAlign='left';
 }
 
@@ -1347,19 +1348,14 @@ function terrain(ctx, w, h) {
 function duelTerrain(ctx, w, h, t = Date.now()) {
   ctx.drawImage(getCachedDuelPit(), 0, 0, w, h);
   const sx = w / 1200, sy = h / 760;
-  for (let i=0;i<2;i++) {
-    const bx=(i?1095:105)*sx, by=414*sy;
-    const pulse=.86+.14*Math.sin(t*.012+i*2.4);
-    const outer=i?'rgba(255,46,145,.24)':'rgba(24,230,207,.24)';
-    const flame=i?'#ff3b88':'#18cfc2';
-    circle(ctx,bx,by,42*sx*pulse,outer);
-    circle(ctx,bx,by,19*sx*pulse,flame);
-    circle(ctx,bx+Math.sin(t*.009+i)*5*sx,by-9*sy,12*sx*pulse,i?'#ff9b45':'#62f5df');
-    circle(ctx,bx,by-13*sy,5*sx,'#fff6b0');
-    for(let j=0;j<3;j++) {
-      const age=(t*.025+j*13+i*7)%35;
-      circle(ctx,bx+Math.sin(t*.008+j)*11*sx,by-age*sy,1.7*sx,i?'#ffcf4a':'#70f7ff');
-    }
+  // Polvo y confeti ligero dan vida al escenario sin recargar el procesador.
+  const colors=['#00a98f','#ef3e5b','#6655cc','#ffcf36'];
+  for(let i=0;i<18;i++) {
+    const phase=(t*.012+i*41)%220;
+    const x=((i*173+phase*1.7)%1160+20)*sx;
+    const y=(515+(i*29%145)-phase*.08)*sy;
+    ctx.fillStyle=colors[i%colors.length];
+    ctx.save();ctx.translate(x,y);ctx.rotate(t*.002+i);ctx.fillRect(-2*sx,-5*sy,4*sx,10*sy);ctx.restore();
   }
 }
 
