@@ -27,7 +27,7 @@ export function normalizeLiveGifts(data, previous=[]) {
   return list.filter(g=>g && typeof g.name==='string').map(g=>{
     const coins=Number(g.diamond_count ?? g.diamondCount ?? g.coins);
     const old=previous.find(p=>String(p.id)===String(g.id) && g.id!=null)
-      || previous.find(p=>p.name===g.name && Number(p.coins)===coins);
+      || previous.find(p=>(p.name===g.name || (p.nameEn && p.nameEn===g.name) || giftKey(p.name)===giftKey(g.name)) && Number(p.coins)===coins);
     const candidates=[...(g.image?.url_list || []),...(g.image?.urlList || []),g.image?.url,g.imageUrl,old?.imageUrl];
     const imageUrl=candidates.find(url=>typeof url==='string' && /^https:\/\//i.test(url)) || '';
     return {id:g.id,name:g.name,coins:Number.isFinite(coins)?coins:0,imageUrl,

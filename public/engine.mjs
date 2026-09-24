@@ -29,14 +29,14 @@ export const defaults = {
   autoFill: true,
   likeScope: 'individual',
   rules: [
-    { gift: 'Rose',         action: 'rose',   actions: ['rose'],   quantity: 1 },
-    { gift: 'Finger Heart', action: 'armor',  actions: ['armor'],  quantity: 1 },
-    { gift: 'Doughnut',     action: 'revive', actions: ['revive'], quantity: 1 },
-    { gift: 'Hand Heart',   action: 'steel',  actions: ['steel'],  quantity: 1 },
-    { gift: 'Sunglasses',   action: 'royal',  actions: ['royal'],  quantity: 1 },
-    { gift: 'Perfume',      action: 'magic',  actions: ['magic'],  quantity: 1 },
-    { gift: 'GG',           action: 'shield', actions: ['shield'], quantity: 10 },
-    { gift: 'Galaxy',       action: 'meteor', actions: ['meteor'], quantity: 1 }
+    { gift: 'Rosa',              action: 'rose',   actions: ['rose'],   quantity: 1 },
+    { gift: 'Corazón con dedos', action: 'armor',  actions: ['armor'],  quantity: 1 },
+    { gift: 'Dona',              action: 'revive', actions: ['revive'], quantity: 1 },
+    { gift: 'Corazón con manos', action: 'steel',  actions: ['steel'],  quantity: 1 },
+    { gift: 'Gafas de sol',      action: 'royal',  actions: ['royal'],  quantity: 1 },
+    { gift: 'Perfume',           action: 'magic',  actions: ['magic'],  quantity: 1 },
+    { gift: 'GG',                action: 'shield', actions: ['shield'], quantity: 10 },
+    { gift: 'Galaxia',           action: 'meteor', actions: ['meteor'], quantity: 1 }
   ]
 };
 
@@ -81,9 +81,52 @@ export const limits = {
   maxMagicSeconds: [5, 120], frenzySeconds: [1, 5], maxFrenzySeconds: [1, 10],
   maxChampionWins: [1, 10], winScore: [100, 100000]
 };
+export const giftTranslations = {
+  'rose': 'rosa',
+  'roses': 'rosas',
+  'finger heart': 'corazon con dedos',
+  'doughnut': 'dona',
+  'donut': 'dona',
+  'hand heart': 'corazon con manos',
+  'hand hearts': 'corazon con manos',
+  'sunglasses': 'gafas de sol',
+  'sun glasses': 'gafas de sol',
+  'perfume': 'perfume',
+  'gg': 'gg',
+  'galaxy': 'galaxia',
+  'lion': 'leon',
+  'whale': 'ballena',
+  'crown': 'corona',
+  'paper crane': 'grulla de papel',
+  'ice cream cone': 'cono de helado',
+  'heart me': 'corazon',
+  'weights': 'pesas',
+  'fire': 'fuego',
+  'football': 'futbol',
+  'congratulations': 'felicidades',
+  'good job': 'buen trabajo',
+  'glow stick': 'barra luminosa',
+  'cake slice': 'porcion de pastel',
+  'cap': 'gorra',
+  'coffee': 'cafe',
+  'fireworks': 'fuegos artificiales',
+  'guitar': 'guitarra',
+  'motorcycle': 'motocicleta',
+  'sports car': 'auto deportivo',
+  'dragon': 'dragon',
+  'falcon': 'halcon',
+  'swan': 'cisne',
+  'castle': 'castillo',
+  'universe': 'universo'
+};
+
 export function giftKey(name) {
-  const key = String(name || '').trim().toLowerCase();
-  return ({'hand hearts': 'hand heart'})[key] || key;
+  const norm = String(name || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  return giftTranslations[norm] || norm;
 }
 const boundedCount = (n, fallback = 1) => Number.isFinite(Number(n))
   ? Math.max(0, Math.min(100000, Math.floor(Number(n)))) : fallback;

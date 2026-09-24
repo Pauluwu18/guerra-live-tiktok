@@ -354,7 +354,7 @@ function readDraft() {
 
 action($('#addRule'), () => {
   readDraft();
-  draft.rules.push({ gift: 'Rose', quantity: 1, action: 'armor', actions: ['armor'] });
+  draft.rules.push({ gift: 'Rosa', quantity: 1, action: 'armor', actions: ['armor'] });
   renderRules();
   renderOverlayPreview();
 });
@@ -489,7 +489,7 @@ function renderSimOptions() {
   const list = filterGifts(all, $('#simGiftSearch').value);
   $('#simGift').innerHTML = list.map(g => `<option value="${esc(g.key)}">${esc(g.name)} · ${g.coins === null ? 'canje personalizado' : g.coins + ' monedas'}${mappedRule(g) ? ' · con canje' : ''}</option>`).join('');
   if (list.some(g => g.key === previous)) $('#simGift').value = previous;
-  else if (!$('#simGiftSearch').value) $('#simGift').value = list.find(g => g.name === 'Rose')?.key || list[0]?.key || '';
+  else if (!$('#simGiftSearch').value) $('#simGift').value = list.find(g => giftKey(g.name) === 'rosa')?.key || list[0]?.key || '';
   $('#simGiftCount').textContent = `${list.length} de ${all.length} regalos disponibles`;
   renderSimPreview();
 }

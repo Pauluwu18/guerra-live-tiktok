@@ -9,8 +9,11 @@ export function giftOptions(gifts,rules=[]) {
 }
 export function filterGifts(options,query='',sort='coins',mappedOnly=false,rules=[]) {
   const q=normalize(query.trim());const mapped=new Set(rules.map(r=>giftKey(r.gift)));
-  return options.filter(g=>normalize(g.name).includes(q) && (!mappedOnly || mapped.has(giftKey(g.name))))
-    .sort((a,b)=>sort==='name'?a.name.localeCompare(b.name):sort==='expensive'?(b.coins??-1)-(a.coins??-1): (a.coins??Infinity)-(b.coins??Infinity));
+  return options.filter(g=>{
+    const matchQ = !q || normalize(g.name).includes(q) || (g.nameEn && normalize(g.nameEn).includes(q));
+    const matchMapped = !mappedOnly || mapped.has(giftKey(g.name)) || (g.nameEn && mapped.has(giftKey(g.nameEn)));
+    return matchQ && matchMapped;
+  }).sort((a,b)=>sort==='name'?a.name.localeCompare(b.name):sort==='expensive'?(b.coins??-1)-(a.coins??-1): (a.coins??Infinity)-(b.coins??Infinity));
 }
 export function giftPage(list,page=0) {
   const pages=Math.max(1,Math.ceil(list.length/PAGE_SIZE));
