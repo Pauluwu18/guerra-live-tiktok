@@ -1023,71 +1023,40 @@ const werebearPacks = {
   death:    { url: 'assets/Werebear_Death.png',    frames: 4,  jade: null, coral: null, ready: false }
 };
 
-function processSheetColors(img) {
-  try {
-    const w = img.naturalWidth || img.width || 600;
-    const h = img.naturalHeight || img.height || 100;
-    const cCoral = document.createElement('canvas');
-    cCoral.width = w; cCoral.height = h;
-    const ctxC = cCoral.getContext('2d');
-    ctxC.drawImage(img, 0, 0);
-    const imgData = ctxC.getImageData(0, 0, w, h);
-    const d = imgData.data;
-    for (let i = 0; i < d.length; i += 4) {
-      if (d[i + 3] < 15) continue;
-      const r = d[i], g = d[i + 1], b = d[i + 2];
-      if (g > 50 || b > 60) {
-        d[i]     = Math.min(255, Math.floor(Math.max(r, g, b) * 1.35 + 25));
-        d[i + 1] = Math.floor(g * 0.35 + 10);
-        d[i + 2] = Math.floor(b * 0.25);
-      }
-    }
-    ctxC.putImageData(imgData, 0, 0);
-    return { coral: cCoral };
-  } catch {
-    return { coral: img };
-  }
-}
-
 function updateSpriteCredits() {
   const el = $('#spriteCredits');
   if (el) {
-    el.textContent = 'Sprites 2D animados activos: Soldado Básico + Soldado Nivel 10 (Caminar, Ataques 01, 02 y 03 Frenesí, Espera, Muerte, Bloqueo).';
+    el.textContent = 'Sprites 2D con paletas nativas Jade y Coral: Soldado Básico + Soldado Nivel 10 (Caminar, Ataques, Frenesí, Espera, Muerte y Bloqueo).';
   }
 }
 
 function loadPack(key, dict = spritePacks) {
   const pack = dict[key];
   if (!pack) return;
-  const img = new Image();
-  img.onload = () => {
-    pack.jade = img;
-    // El jefe solo usa una paleta. Evitar una copia completa de cada una de
-    // sus siete hojas animadas ahorra varios MB de RAM y tiempo de arranque.
-    if (dict === werebearPacks) {
-      pack.coral = null;
-      pack.ready = true;
-      updateSpriteCredits();
-      return;
-    }
-    try {
-      const res = processSheetColors(img);
-      pack.coral = res.coral || img;
-    } catch {
-      pack.coral = img;
-    }
-    pack.ready = true;
-    updateSpriteCredits();
+  if (dict === werebearPacks) {
+    const img = new Image();
+    img.onload = () => { pack.jade = img; pack.coral = null; pack.ready = true; updateSpriteCredits(); };
+    img.onerror = e => console.error('Error cargando sprite:', pack.url, e);
+    img.src = assetUrl(pack.url);
+    return;
+  }
+
+  const file = pack.url.split('/').pop();
+  const finish = () => {
+    if (pack.jade && pack.coral) { pack.ready = true; updateSpriteCredits(); }
   };
-  img.onerror = (e) => {
-    console.error('Error cargando sprite:', pack.url, e);
-    if (key !== 'walk' && dict.walk?.ready) {
-      pack.jade = dict.walk.jade;
-      pack.coral = dict.walk.coral;
-      pack.ready = true;
-    }
+  const loadTeam = (team, url, fallback = false) => {
+    const img = new Image();
+    img.onload = () => { pack[team] = img; finish(); };
+    img.onerror = e => {
+      if (!fallback) { loadTeam(team, pack.url, true); return; }
+      console.error('Error cargando sprite:', url, e);
+      if (key !== 'walk' && dict.walk?.ready) { pack[team] = dict.walk[team]; finish(); }
+    };
+    img.src = assetUrl(url);
   };
-  img.src = assetUrl(pack.url);
+  loadTeam('jade', `assets/variants/jade/${file}`);
+  loadTeam('coral', `assets/variants/coral/${file}`);
 }
 
 if (!overlay) {

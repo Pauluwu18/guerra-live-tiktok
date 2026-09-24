@@ -8,6 +8,6 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "test": "node test.mjs && node regression.test.mjs && node catalog.test.mjs && node boss.test.mjs"
+    "test": "node test.mjs && node regression.test.mjs && node catalog.test.mjs && node boss.test.mjs && node sprite-variants.test.mjs"
   }
 }
