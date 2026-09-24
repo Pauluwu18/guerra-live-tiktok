@@ -49,7 +49,7 @@ export const actionNames = {
   magic:  'Magia temporal',
   meteor: 'Meteorito de Galaxia',
   shield: 'Escudo protector',
-  rose:   'Rosa (20: Soldado Nivel 10 | +10: Frenesí)'
+  rose:   'Rosa (+1% vida y salud llena | 20: Soldado Nivel 10 | +10: Frenesí)'
 };
 
 export const limits = {
@@ -443,6 +443,30 @@ export class Battle {
     if (!count) return false;
     const prevRoses = p.roses || 0;
     p.roses = prevRoses + count;
+
+    // Al dar 1 rosa restableces la vida y la aumentas 1% (por cada rosa)
+    p.maxHp = Math.min(50000, Math.round(p.maxHp * Math.pow(1.01, count)));
+    if (p.hp > 0) {
+      p.hp = p.maxHp;
+      this.effect({
+        kind: 'combat_text',
+        text: count === 1 ? '🌹 +1% HP (Vida llena)' : `🌹 +${count}% HP (Vida llena)`,
+        x: p.x,
+        y: p.y - 28,
+        color: '#2ecc71',
+        life: 1.2,
+        max: 1.2
+      });
+      this.effect({
+        kind: 'magic_pulse',
+        x: p.x,
+        y: p.y,
+        r: 45,
+        life: 0.35,
+        max: 0.35,
+        team: p.team
+      });
+    }
 
     // Ascenso a Soldado Nivel 10 al mandar 20 rosas (+2 daño, +2 defensa, restablecer vida)
     if (!p.isKnight && p.roses >= 20) {

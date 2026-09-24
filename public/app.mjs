@@ -279,7 +279,7 @@ function rewardText(r, c) {
     magic: `🔮 Magia ${c.magicSeconds}s (máx. ${c.maxMagicSeconds}s)`,
     meteor: `☄️ ${c.meteorDamage} daño en área (máx. 3 pendientes/bando)`,
     shield: `🛡️ Escudo ${c.shieldSeconds}s (máx. ${c.maxShieldSeconds}s; recarga 6s)`,
-    rose: `🌹 20: nivel 10; cada 10 extra: frenesí ${c.frenzySeconds}s (máx. ${c.maxFrenzySeconds}s)`
+    rose: `🌹 +1% vida y salud llena; 20: Nv.10; cada 10 extra: frenesí ${c.frenzySeconds}s`
   };
   return map[r.action] || actionNames[r.action] || r.action;
 }
@@ -665,7 +665,7 @@ function renderStats() {
     <div class="statname">${esc(p.name)} ${p.bot ? '<small>BOT</small>' : '<b style="color:var(--lime)">★ ESPECTADOR</b>'}</div>
     <div class="meter"><div style="width:${Math.max(0, p.hp / p.maxHp * 100)}%"></div></div>
     <div class="statline">CLASE <b>${isKnight ? '⭐ Soldado Nivel 10' : 'Soldado (Nv. 1)'}</b></div>
-    <div class="statline">ROSAS <b>🌹 ${p.roses || 0} ${!isKnight ? '/ 20 (Para Nv.10)' : (p.frenzyTimer > 0 ? '(Frenesí Activo)' : '+10 para Frenesí')}</b></div>
+    <div class="statline">ROSAS <b>🌹 ${p.roses || 0} (+${p.roses || 0}% vida) ${!isKnight ? '/ 20 (Para Nv.10)' : (p.frenzyTimer > 0 ? '(Frenesí Activo)' : '+10 para Frenesí')}</b></div>
     ${isFrenzy ? `<div class="statline" style="color:#ff4757">FRENESÍ <b>🔥 ${p.frenzyTimer > 0 ? p.frenzyTimer.toFixed(1) + 's restantes' : 'Activo (Attack03)'}</b></div>` : ''}
     <div class="statline">VIDA <b>${Math.ceil(p.hp)} / ${p.maxHp}</b></div>
     <div class="statline">ARMADURA <b>🛡️ ${Math.round(p.armor)}${p.defense ? ' (+'+p.defense+' def)' : ''}</b></div>
