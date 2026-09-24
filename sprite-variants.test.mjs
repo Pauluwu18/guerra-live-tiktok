@@ -10,17 +10,21 @@ const files = [
 
 const pngSize = buffer => ({width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20)});
 for (const file of files) {
-  const [jade, coral] = await Promise.all([
+  const [jade, coral, teamsCoral] = await Promise.all([
     readFile(new URL(`./public/assets/variants/jade/${file}`, import.meta.url)),
-    readFile(new URL(`./public/assets/variants/coral/${file}`, import.meta.url))
+    readFile(new URL(`./public/assets/variants/coral/${file}`, import.meta.url)),
+    readFile(new URL(`./public/assets/variants/teams-coral/${file}`, import.meta.url))
   ]);
   assert.equal(jade.subarray(1,4).toString(), 'PNG', `${file}: Jade debe ser PNG`);
   assert.equal(coral.subarray(1,4).toString(), 'PNG', `${file}: Coral debe ser PNG`);
   assert.deepEqual(pngSize(jade), pngSize(coral), `${file}: ambas paletas conservan el lienzo`);
+  assert.deepEqual(pngSize(jade), pngSize(teamsCoral), `${file}: 20 vs 20 conserva el lienzo`);
   assert.notDeepEqual(jade, coral, `${file}: las paletas deben ser distintas`);
+  assert.notDeepEqual(coral, teamsCoral, `${file}: la paleta limpia del duelo no debe afectar 20 vs 20`);
 }
 
 const app = await readFile(new URL('./public/app.mjs', import.meta.url), 'utf8');
 assert.ok(!app.includes('processSheetColors'), 'El navegador no debe recolorear sprites en tiempo real');
 assert.ok(app.includes('assets/variants/jade/') && app.includes('assets/variants/coral/'));
-console.log(`OK: ${files.length * 2} hojas nativas Jade/Coral sin filtro de color en el navegador.`);
+assert.ok(app.includes("isDuel\n    ? (isJade ? currentPack.jade : currentPack.coral)"), 'Las paletas limpias deben limitarse al duelo');
+console.log(`OK: ${files.length * 3} hojas; variantes limpias limitadas al 1 vs 1.`);

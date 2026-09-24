@@ -13,7 +13,7 @@ $files = @(
   'Knight_Hurt.png', 'Knight_Block.png'
 )
 
-foreach ($team in @('jade','coral')) {
+foreach ($team in @('jade','coral','teams-coral')) {
   $outputRoot = Join-Path $assetRoot "variants\$team"
   New-Item -ItemType Directory -Force -Path $outputRoot | Out-Null
   foreach ($file in $files) {
@@ -34,6 +34,14 @@ foreach ($team in @('jade','coral')) {
           for ($i=0; $i -lt $length; $i+=4) {
             $b=$pixels[$i]; $g=$pixels[$i+1]; $r=$pixels[$i+2]; $a=$pixels[$i+3]
             if ($a -eq 0) { continue }
+            if ($team -eq 'teams-coral') {
+              if ($g -gt 50 -or $b -gt 60) {
+                $pixels[$i+2]=[byte][Math]::Min(255,[Math]::Floor([Math]::Max($r,[Math]::Max($g,$b))*1.35+25))
+                $pixels[$i+1]=[byte][Math]::Floor($g*0.35+10)
+                $pixels[$i]=[byte][Math]::Floor($b*0.25)
+              }
+              continue
+            }
             $redLead = $r - [Math]::Max($g,$b)
             $balancedRed = [Math]::Abs($g-$b) -le [Math]::Max(9,$g*0.28)
             if ($r -lt 65 -or $redLead -lt 24 -or -not $balancedRed) { continue }
@@ -57,4 +65,4 @@ foreach ($team in @('jade','coral')) {
   }
 }
 
-Write-Output "Variantes Jade y Coral generadas: $($files.Count * 2) hojas PNG"
+Write-Output "Paletas generadas: $($files.Count * 3) hojas PNG"

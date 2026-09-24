@@ -1026,7 +1026,7 @@ const werebearPacks = {
 function updateSpriteCredits() {
   const el = $('#spriteCredits');
   if (el) {
-    el.textContent = 'Sprites 2D con paletas nativas Jade y Coral: Soldado Básico + Soldado Nivel 10 (Caminar, Ataques, Frenesí, Espera, Muerte y Bloqueo).';
+    el.textContent = 'Duelo 1 vs 1 con paletas nativas Jade y Coral; los demás modos conservan su apariencia original. Incluye Soldado Básico y Nivel 10.';
   }
 }
 
@@ -1043,7 +1043,7 @@ function loadPack(key, dict = spritePacks) {
 
   const file = pack.url.split('/').pop();
   const finish = () => {
-    if (pack.jade && pack.coral) { pack.ready = true; updateSpriteCredits(); }
+    if (pack.base && pack.jade && pack.coral && pack.teamsCoral) { pack.ready = true; updateSpriteCredits(); }
   };
   const loadTeam = (team, url, fallback = false) => {
     const img = new Image();
@@ -1055,8 +1055,10 @@ function loadPack(key, dict = spritePacks) {
     };
     img.src = assetUrl(url);
   };
+  loadTeam('base', pack.url, true);
   loadTeam('jade', `assets/variants/jade/${file}`);
   loadTeam('coral', `assets/variants/coral/${file}`);
+  loadTeam('teamsCoral', `assets/variants/teams-coral/${file}`);
 }
 
 if (!overlay) {
@@ -1593,7 +1595,9 @@ function soldier(ctx, p, t = Date.now(), mode = 'teams') {
     if (isDuel) ctx.scale(1.85, 1.85);
     const isK = !!(p.isKnight || (p.classLevel && p.classLevel >= 10));
     const deathPack = (isK && knightPacks.death.ready) ? knightPacks.death : (spritePacks.death.ready ? spritePacks.death : null);
-    const deathSheet = deathPack ? (isJade ? deathPack.jade : deathPack.coral) : null;
+    const deathSheet = deathPack
+      ? (isDuel ? (isJade ? deathPack.jade : deathPack.coral) : (isJade ? deathPack.base : deathPack.teamsCoral))
+      : null;
     if (deathSheet) {
       ctx.imageSmoothingEnabled = false;
       if (isK && deathPack === knightPacks.death) {
@@ -1765,8 +1769,10 @@ function soldier(ctx, p, t = Date.now(), mode = 'teams') {
   }
 
   // 2. RENDERIZADO DEL SPRITE SHEET ANIMADO (Ataque, Caminar o Espera)
-  const currentSheet = isJade ? currentPack.jade : currentPack.coral;
-  const imgSource = currentSheet || currentPack.jade || currentPack.coral || spritePacks.walk.jade || knightPacks.walk.jade;
+  const currentSheet = isDuel
+    ? (isJade ? currentPack.jade : currentPack.coral)
+    : (isJade ? currentPack.base : currentPack.teamsCoral);
+  const imgSource = currentSheet || currentPack.base || currentPack.jade || currentPack.coral || spritePacks.walk.base || knightPacks.walk.base;
 
   if (imgSource) {
     ctx.save();
