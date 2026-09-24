@@ -526,9 +526,9 @@ function handleState(newState) {
     const cHp = Math.ceil(pC?.hp || 0);
     $('#score').innerHTML = `JADE <b>${jHp} HP</b> <span>VS</span> <b>${cHp} HP</b> CORAL`;
   } else if (state.mode === 'boss') {
-    $('#mission').textContent = 'MISIÓN / ASALTO A LA TORRE';
+    $('#mission').textContent = 'MISIÓN / ASALTO AL WEREBEAR ANCESTRAL';
     const a = state.players.filter(p => p.team === 0 && p.hp > 0).length;
-    $('#score').innerHTML = `JADE <b>${a}</b> <span>VS</span> TORRE <b>${Math.ceil(state.boss?.hp || 0)}</b>`;
+    $('#score').innerHTML = `JADE <b>${a}</b> <span>VS</span> WEREBEAR <b>${Math.ceil(state.boss?.hp || 0).toLocaleString()} HP</b>`;
   } else {
     $('#mission').textContent = 'MISIÓN / GUERRA 20 VS 20';
     const a = state.players.filter(p => p.team === 0 && p.hp > 0).length;
@@ -842,6 +842,17 @@ const knightPacks = {
   block:    { url: 'assets/Knight_Block.png',    frames: 4,  jade: null, coral: null, ready: false }
 };
 
+// ── GESTIÓN DE SPRITES ANIMADOS DEL WEREBEAR (JEFE ANCESTRAL) ────────────
+const werebearPacks = {
+  idle:     { url: 'assets/Werebear_Idle.png',     frames: 6,  jade: null, coral: null, ready: false },
+  walk:     { url: 'assets/Werebear_Walk.png',     frames: 8,  jade: null, coral: null, ready: false },
+  attack01: { url: 'assets/Werebear_Attack01.png', frames: 9,  jade: null, coral: null, ready: false },
+  attack02: { url: 'assets/Werebear_Attack02.png', frames: 13, jade: null, coral: null, ready: false },
+  attack03: { url: 'assets/Werebear_Attack03.png', frames: 9,  jade: null, coral: null, ready: false },
+  hurt:     { url: 'assets/Werebear_Hurt.png',     frames: 4,  jade: null, coral: null, ready: false },
+  death:    { url: 'assets/Werebear_Death.png',    frames: 4,  jade: null, coral: null, ready: false }
+};
+
 function processSheetColors(img) {
   try {
     const w = img.naturalWidth || img.width || 600;
@@ -904,6 +915,7 @@ function loadPack(key, dict = spritePacks) {
 if (!overlay) {
   Object.keys(spritePacks).forEach(k => loadPack(k, spritePacks));
   Object.keys(knightPacks).forEach(k => loadPack(k, knightPacks));
+  Object.keys(werebearPacks).forEach(k => loadPack(k, werebearPacks));
 }
 
 
@@ -1814,6 +1826,108 @@ const SLASH_COLS = {
   base:   ['#d0d0d0', '#f0f0f0']
 };
 
+
+// ── RENDERIZADO DEL JEFE WEREBEAR ANCESTRAL (Animaciones y Habilidades) ──
+function werebear(ctx, bss, t = Date.now()) {
+  if (!bss) return;
+
+  const action = bss.action || 'idle';
+  const pack = werebearPacks[action] || werebearPacks.idle;
+
+  let frameIndex = 0;
+  if (action === 'attack02') {
+    const prog = Math.min(0.999, Math.max(0, 1 - (bss.actionTimer || 0) / 1.3));
+    frameIndex = Math.min(12, Math.floor(prog * 13));
+  } else if (action === 'attack01' || action === 'attack03') {
+    const total = action === 'attack01' ? 0.8 : 0.9;
+    const prog = Math.min(0.999, Math.max(0, 1 - (bss.actionTimer || 0) / total));
+    frameIndex = Math.min(8, Math.floor(prog * 9));
+  } else if (action === 'death') {
+    const prog = Math.min(1.0, Math.max(0, 1 - (bss.deathTimer || 0) / 1.8));
+    frameIndex = Math.min(3, Math.floor(prog * 4));
+  } else if (action === 'hurt') {
+    const prog = Math.min(0.999, Math.max(0, 1 - (bss.hurtTimer || 0) / 0.35));
+    frameIndex = Math.min(3, Math.floor(prog * 4));
+  } else if (action === 'walk') {
+    frameIndex = Math.floor((t * 0.008) % 8);
+  } else {
+    frameIndex = Math.floor((t * 0.005) % 6);
+  }
+
+  const sheet = pack.jade || werebearPacks.idle.jade;
+
+  ctx.save();
+  ctx.translate(bss.x, bss.y);
+
+  // 1. Sombra masiva del Werebear
+  ctx.save();
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.42)';
+  ctx.beginPath();
+  ctx.ellipse(0, 20, 56, 22, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // 2. Orientación según ángulo hacia el objetivo
+  const facingLeft = Math.cos(bss.angle ?? Math.PI) < 0;
+  const scale = 2.0; // Doble de tamaño que un soldado normal
+  ctx.scale((facingLeft ? -1 : 1) * scale, scale);
+
+  if (sheet) {
+    ctx.imageSmoothingEnabled = false;
+    const sx = frameIndex * 100;
+    const sy = 0;
+    const sw = 100;
+    const sh = 100;
+    ctx.drawImage(sheet, sx, sy, sw, sh, -50, -68, 100, 100);
+  } else {
+    circle(ctx, 0, 0, 36, '#4a2810');
+    circle(ctx, 0, -20, 22, '#2a1408');
+  }
+
+  ctx.restore();
+
+  // 3. Barra de vida y estado superior
+  ctx.save();
+  ctx.translate(bss.x, bss.y);
+
+  const barW = 160;
+  const barH = 11;
+  const barY = -82;
+
+  ctx.fillStyle = '#0a0202';
+  ctx.fillRect(-barW / 2 - 2, barY - 2, barW + 4, barH + 4);
+
+  const hpFrac = Math.max(0, bss.hp / bss.maxHp);
+  const barGrad = ctx.createLinearGradient(-barW / 2, 0, barW / 2, 0);
+  barGrad.addColorStop(0, '#ff2020');
+  barGrad.addColorStop(0.5, '#ff7020');
+  barGrad.addColorStop(1, '#ffc020');
+
+  ctx.fillStyle = barGrad;
+  ctx.fillRect(-barW / 2, barY, barW * hpFrac, barH);
+
+  ctx.strokeStyle = '#ffd700';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(-barW / 2, barY, barW, barH);
+
+  ctx.font = 'bold 11px sans-serif';
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.fillText(`👹 WEREBEAR ANCESTRAL · ${Math.ceil(bss.hp).toLocaleString()} HP`, 0, barY - 6);
+
+  if (action === 'attack02') {
+    ctx.fillStyle = '#ff4757';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText('💥 ¡APLASTAMIENTO SÍSMICO!', 0, barY - 20);
+  } else if (action === 'attack03') {
+    ctx.fillStyle = '#ffa502';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText('⚡ ¡FURIA DESGARRADORA!', 0, barY - 20);
+  }
+
+  ctx.restore();
+}
+
 function draw(ctx, s, w, h) {
   const t = Date.now();
 
@@ -1847,30 +1961,9 @@ function draw(ctx, s, w, h) {
     ctx.scale(w / 1200, h / 760);
   }
 
-  // Torre del jefe
+  // Jefe Werebear Ancestral
   if (s.mode === 'boss' && s.boss) {
-    const bss = s.boss;
-    ctx.save(); ctx.translate(bss.x, bss.y);
-    circle(ctx, 0, 8, 70, 'rgba(0,0,0,0.4)');
-    ctx.fillStyle = '#4a3820'; ctx.beginPath(); ctx.arc(0,0,64,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle='#7a5c30'; ctx.lineWidth=5; ctx.stroke();
-    for (let i = 0; i < 4; i++) {
-      const a = i * Math.PI / 2 + Math.PI / 4;
-      circle(ctx, Math.cos(a)*44, Math.sin(a)*44, 12, '#3a2810');
-      circle(ctx, Math.cos(a)*44, Math.sin(a)*44, 9,  '#5a4020');
-    }
-    ctx.fillStyle='#2a1c10'; ctx.fillRect(-25,-25,50,50);
-    ctx.strokeStyle='#6a4828'; ctx.lineWidth=3; ctx.stroke();
-    const pulse2 = 0.85 + 0.15 * Math.sin(t/200);
-    ctx.save(); ctx.scale(pulse2,pulse2);
-    circle(ctx, 0,0,22,'#8a1a08'); circle(ctx,0,0,14,'#c03020'); circle(ctx,0,0,7,'#ff6050');
-    ctx.restore();
-    ctx.fillStyle='#1a0808'; ctx.fillRect(-70,-90,140,11);
-    ctx.fillStyle='#d03010'; ctx.fillRect(-70,-90,140*Math.max(0,bss.hp/bss.maxHp),11);
-    ctx.strokeStyle='#ff6040'; ctx.lineWidth=1.5; ctx.strokeRect(-70,-90,140,11);
-    ctx.font='bold 10px sans-serif'; ctx.fillStyle='#fff'; ctx.textAlign='center';
-    ctx.fillText('🏰 TORRE DEL JEFE',0,-97); ctx.textAlign='left';
-    ctx.restore();
+    try { werebear(ctx, s.boss, t); } catch (e) { /* fallback seguro */ }
   }
 
   // Cráteres

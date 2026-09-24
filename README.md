@@ -29,8 +29,13 @@ Juego RPG medieval en 2D interactivo para transmisiones en vivo de **TikTok Live
 * Sistema de estamina, esquives, bloqueo (*parry*), golpes críticos y contraataques.
 * Cada victoria consecutiva aumenta +1% de vida máxima y daño del gladiador.
 
-### 3. 🏰 Asalto a la Torre
-* Modo asedio cooperativo donde el ejército Jade asalta la fortaleza enemiga.
+### 3. 👹 Asalto al Werebear Ancestral (Modo Jefe)
+* Modo cooperativo donde el ejército asalta al colosal **Werebear**.
+* El Werebear recorre la arena con IA de persecución y desata 3 habilidades devastadoras:
+  * 🐾 **Ataque 1 (Zarpazo Brutal)**: Golpe frontal de garras a corta distancia.
+  * 💥 **Ataque 2 (Aplastamiento Terremoto)**: Salto e impacto sísmico con onda de choque masiva y cráter en el suelo.
+  * ⚡ **Ataque 3 (Furia Desgarradora)**: Combo de doble desgarre de alto daño.
+* Animaciones completas de respiración (*Idle*), caminata (*Walk*), dolor (*Hurt*) y caída heroica (*Death*).
 
 ---
 

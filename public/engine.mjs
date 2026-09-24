@@ -277,11 +277,21 @@ export class Battle {
       }
     }
 
-    // Reiniciar jefe
+    // Reiniciar jefe Werebear Ancestral
     this.boss = {
-      id: 'boss', x: 600, y: 380,
+      id: 'boss',
+      name: 'Werebear Ancestral',
+      x: 600, y: 380,
       hp: this.config.bossHealth, maxHp: this.config.bossHealth,
-      cd: 2, team: 1
+      team: 1,
+      angle: Math.PI,
+      action: 'idle',
+      actionTimer: 0,
+      cd01: 1.0,
+      cd02: 6.0,
+      cd03: 3.5,
+      hurtTimer: 0,
+      hitTriggered: false
     };
 
     const active = new Set(this.players.map(p => p.id));
@@ -681,6 +691,9 @@ export class Battle {
     if (target.armor !== undefined) target.armor -= absorbed;
     const finalHpLoss = damage - absorbed;
     target.hp = Math.max(0, target.hp - finalHpLoss);
+    if (target === this.boss && this.boss.action !== 'death') {
+      this.boss.hurtTimer = 0.35;
+    }
 
     // 5. CONSUMO DE ESTAMINA / GUARD BREAK — Solo en 1vs1
     if (isDuel && target.stamina !== undefined) {
@@ -1013,15 +1026,106 @@ export class Battle {
       }
     }
 
-    // ── Torre del jefe ────────────────────────────────────────────────────
-    if (this.mode === 'boss' && this.boss.hp > 0) {
-      this.boss.cd -= dt;
-      if (this.boss.cd < 0 && living.length) {
-        this.boss.cd = 2.2;
-        for (const p of living) {
-          if (Math.hypot(p.x - 600, p.y - 380) < 350) this.hit(p, this.config.bossDamage, this.boss);
+    // ── Jefe Werebear Ancestral ───────────────────────────────────────────
+    if (this.mode === 'boss' && this.boss) {
+      if (this.boss.hp <= 0) {
+        this.boss.action = 'death';
+      } else {
+        this.boss.cd01 = (this.boss.cd01 || 0) - dt;
+        this.boss.cd02 = (this.boss.cd02 || 0) - dt;
+        this.boss.cd03 = (this.boss.cd03 || 0) - dt;
+        this.boss.actionTimer = (this.boss.actionTimer || 0) - dt;
+        this.boss.hurtTimer = (this.boss.hurtTimer || 0) - dt;
+
+        const livingJade = living.filter(p => p.team === 0);
+
+        if (livingJade.length) {
+          let closest = null;
+          let minDist = Infinity;
+          for (let i = 0; i < livingJade.length; i++) {
+            const p = livingJade[i];
+            const d = Math.hypot(p.x - this.boss.x, p.y - this.boss.y);
+            if (d < minDist) {
+              minDist = d;
+              closest = p;
+            }
+          }
+
+          if (closest) {
+            this.boss.angle = Math.atan2(closest.y - this.boss.y, closest.x - this.boss.x);
+
+            if (this.boss.actionTimer > 0) {
+              if (this.boss.action === 'attack02' && !this.boss.hitTriggered && this.boss.actionTimer < 0.6) {
+                this.boss.hitTriggered = true;
+                const slamRadius = 220;
+                for (let i = 0; i < livingJade.length; i++) {
+                  const p = livingJade[i];
+                  if (Math.hypot(p.x - this.boss.x, p.y - this.boss.y) < slamRadius) {
+                    this.hit(p, this.config.bossDamage * 1.6, this.boss);
+                    const pushAngle = Math.atan2(p.y - this.boss.y, p.x - this.boss.x);
+                    p.x += Math.cos(pushAngle) * 35;
+                    p.y += Math.sin(pushAngle) * 35;
+                  }
+                }
+                this.effect({ kind: 'crater', x: this.boss.x, y: this.boss.y, life: 3.5, max: 3.5 });
+                this.effect({ kind: 'blast', x: this.boss.x, y: this.boss.y, radius: slamRadius, life: 0.7, max: 0.7, team: 1 });
+                this.shake = Math.max(this.shake, 0.45);
+              } else if (this.boss.action === 'attack03' && !this.boss.hitTriggered && this.boss.actionTimer < 0.45) {
+                this.boss.hitTriggered = true;
+                for (let i = 0; i < livingJade.length; i++) {
+                  const p = livingJade[i];
+                  if (Math.hypot(p.x - this.boss.x, p.y - this.boss.y) < 140) {
+                    this.hit(p, this.config.bossDamage * 1.3, this.boss);
+                    this.effect({ kind: 'slash', x: p.x, y: p.y, tx: p.x + 10, ty: p.y + 10, weapon: 'legend', life: 0.35, max: 0.35 });
+                  }
+                }
+              } else if (this.boss.action === 'attack01' && !this.boss.hitTriggered && this.boss.actionTimer < 0.4) {
+                this.boss.hitTriggered = true;
+                if (Math.hypot(closest.x - this.boss.x, closest.y - this.boss.y) < 125) {
+                  this.hit(closest, this.config.bossDamage, this.boss);
+                  this.effect({ kind: 'slash', x: closest.x, y: closest.y, tx: closest.x, ty: closest.y + 15, weapon: 'steel', life: 0.3, max: 0.3 });
+                }
+              }
+            } else {
+              this.boss.hitTriggered = false;
+
+              if (this.boss.cd02 <= 0 && minDist < 240) {
+                this.boss.action = 'attack02';
+                this.boss.actionTimer = 1.3;
+                this.boss.cd02 = 6.5;
+              } else if (this.boss.cd03 <= 0 && minDist < 140) {
+                this.boss.action = 'attack03';
+                this.boss.actionTimer = 0.9;
+                this.boss.cd03 = 4.2;
+              } else if (this.boss.cd01 <= 0 && minDist < 110) {
+                this.boss.action = 'attack01';
+                this.boss.actionTimer = 0.8;
+                this.boss.cd01 = 1.8;
+              } else if (minDist > 85) {
+                this.boss.action = 'walk';
+                const bossSpeed = 65;
+                this.boss.x += Math.cos(this.boss.angle) * bossSpeed * dt;
+                this.boss.y += Math.sin(this.boss.angle) * bossSpeed * dt;
+
+                const nx = (this.boss.x - 600) / 450;
+                const ny = (this.boss.y - 380) / 260;
+                const distNorm = Math.hypot(nx, ny);
+                if (distNorm > 1) {
+                  this.boss.x = 600 + (nx / distNorm) * 445;
+                  this.boss.y = 380 + (ny / distNorm) * 255;
+                }
+              } else {
+                this.boss.action = 'idle';
+              }
+            }
+          }
+        } else {
+          this.boss.action = 'idle';
         }
-        this.effect({ kind: 'blast', x: 600, y: 380, radius: 350, life: 0.8, max: 0.8, team: 1 });
+
+        if (this.boss.hurtTimer > 0 && this.boss.actionTimer <= 0) {
+          this.boss.action = 'hurt';
+        }
       }
     }
 
