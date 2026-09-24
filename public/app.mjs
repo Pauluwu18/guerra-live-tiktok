@@ -1828,48 +1828,95 @@ const SLASH_COLS = {
 
 
 // ── RENDERIZADO DEL JEFE WEREBEAR ANCESTRAL (Animaciones y Habilidades) ──
+const bossAnim = {
+  lastSeq: -1,
+  action: 'idle',
+  actionStartTime: 0,
+  actionDuration: 1.0,
+  rx: 600,
+  ry: 380,
+  walkTime: 0
+};
+
 function werebear(ctx, bss, t = Date.now()) {
   if (!bss) return;
 
-  const action = bss.action || 'idle';
-  const pack = werebearPacks[action] || werebearPacks.idle;
+  // Sincronizar acción de combate con interpolación suave
+  if (bss.actionSeq !== undefined && bss.actionSeq !== bossAnim.lastSeq) {
+    bossAnim.lastSeq = bss.actionSeq;
+    bossAnim.action = bss.action || 'idle';
+    bossAnim.actionStartTime = t;
+    bossAnim.actionDuration = (bss.action === 'attack02') ? 1.3 : (bss.action === 'attack01') ? 0.8 : (bss.action === 'attack03') ? 0.9 : 1.0;
+  } else if (bss.action === 'death' && bossAnim.action !== 'death') {
+    bossAnim.action = 'death';
+    bossAnim.actionStartTime = t;
+    bossAnim.actionDuration = 1.8;
+  } else if (bss.action === 'hurt' && bossAnim.action !== 'hurt' && !['attack01','attack02','attack03','death'].includes(bossAnim.action)) {
+    bossAnim.action = 'hurt';
+    bossAnim.actionStartTime = t;
+    bossAnim.actionDuration = 0.35;
+  } else if (['attack01', 'attack02', 'attack03', 'hurt'].includes(bossAnim.action)) {
+    if ((t - bossAnim.actionStartTime) / 1000 >= bossAnim.actionDuration) {
+      bossAnim.action = bss.action || 'idle';
+    }
+  } else {
+    bossAnim.action = bss.action || 'idle';
+  }
+
+  const currentAction = bossAnim.action;
+  const pack = werebearPacks[currentAction] || werebearPacks.idle;
+
+  // LERP suave de posición para 60 FPS
+  bossAnim.rx += (bss.x - bossAnim.rx) * 0.25;
+  bossAnim.ry += (bss.y - bossAnim.ry) * 0.25;
 
   let frameIndex = 0;
-  if (action === 'attack02') {
-    const prog = Math.min(0.999, Math.max(0, 1 - (bss.actionTimer || 0) / 1.3));
+  let hopY = 0;
+
+  if (currentAction === 'attack02') {
+    const elapsed = Math.max(0, (t - bossAnim.actionStartTime) / 1000);
+    const prog = Math.min(0.999, elapsed / 1.3);
     frameIndex = Math.min(12, Math.floor(prog * 13));
-  } else if (action === 'attack01' || action === 'attack03') {
-    const total = action === 'attack01' ? 0.8 : 0.9;
-    const prog = Math.min(0.999, Math.max(0, 1 - (bss.actionTimer || 0) / total));
+    if (frameIndex >= 2 && frameIndex <= 8) {
+      hopY = -Math.sin(((frameIndex - 2) / 6) * Math.PI) * 28;
+    }
+  } else if (currentAction === 'attack01' || currentAction === 'attack03') {
+    const dur = currentAction === 'attack01' ? 0.8 : 0.9;
+    const elapsed = Math.max(0, (t - bossAnim.actionStartTime) / 1000);
+    const prog = Math.min(0.999, elapsed / dur);
     frameIndex = Math.min(8, Math.floor(prog * 9));
-  } else if (action === 'death') {
-    const prog = Math.min(1.0, Math.max(0, 1 - (bss.deathTimer || 0) / 1.8));
+  } else if (currentAction === 'death') {
+    const elapsed = Math.max(0, (t - bossAnim.actionStartTime) / 1000);
+    const prog = Math.min(1.0, elapsed / 1.8);
     frameIndex = Math.min(3, Math.floor(prog * 4));
-  } else if (action === 'hurt') {
-    const prog = Math.min(0.999, Math.max(0, 1 - (bss.hurtTimer || 0) / 0.35));
+  } else if (currentAction === 'hurt') {
+    const elapsed = Math.max(0, (t - bossAnim.actionStartTime) / 1000);
+    const prog = Math.min(0.999, elapsed / 0.35);
     frameIndex = Math.min(3, Math.floor(prog * 4));
-  } else if (action === 'walk') {
-    frameIndex = Math.floor((t * 0.008) % 8);
+  } else if (currentAction === 'walk') {
+    bossAnim.walkTime += 0.14;
+    frameIndex = Math.floor(bossAnim.walkTime) % 8;
   } else {
     frameIndex = Math.floor((t * 0.005) % 6);
   }
 
-  const sheet = pack.jade || werebearPacks.idle.jade;
+  const sheet = pack.jade || werebearPacks.idle.jade || werebearPacks.walk.jade;
 
   ctx.save();
-  ctx.translate(bss.x, bss.y);
+  ctx.translate(bossAnim.rx, bossAnim.ry + hopY);
 
   // 1. Sombra masiva del Werebear
   ctx.save();
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.42)';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
   ctx.beginPath();
-  ctx.ellipse(0, 20, 56, 22, 0, 0, Math.PI * 2);
+  const shadowScale = hopY < 0 ? Math.max(0.6, 1 + hopY / 40) : 1;
+  ctx.ellipse(0, 18, 70 * shadowScale, 26 * shadowScale, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
-  // 2. Orientación según ángulo hacia el objetivo
+  // 2. Orientación y escala titánica
   const facingLeft = Math.cos(bss.angle ?? Math.PI) < 0;
-  const scale = 2.0; // Doble de tamaño que un soldado normal
+  const scale = 3.2; // TAMAÑO COLOSAL
   ctx.scale((facingLeft ? -1 : 1) * scale, scale);
 
   if (sheet) {
@@ -1880,49 +1927,56 @@ function werebear(ctx, bss, t = Date.now()) {
     const sh = 100;
     ctx.drawImage(sheet, sx, sy, sw, sh, -50, -68, 100, 100);
   } else {
-    circle(ctx, 0, 0, 36, '#4a2810');
-    circle(ctx, 0, -20, 22, '#2a1408');
+    circle(ctx, 0, 0, 40, '#4a2810');
+    circle(ctx, 0, -25, 26, '#2a1408');
   }
 
   ctx.restore();
 
-  // 3. Barra de vida y estado superior
+  // 3. Barra de vida y estado superior colosal
   ctx.save();
-  ctx.translate(bss.x, bss.y);
+  ctx.translate(bossAnim.rx, bossAnim.ry - 130);
 
-  const barW = 160;
-  const barH = 11;
-  const barY = -82;
+  const barW = 200;
+  const barH = 13;
+  const barY = 0;
 
-  ctx.fillStyle = '#0a0202';
-  ctx.fillRect(-barW / 2 - 2, barY - 2, barW + 4, barH + 4);
+  ctx.fillStyle = '#080101';
+  ctx.fillRect(-barW / 2 - 3, barY - 3, barW + 6, barH + 6);
 
   const hpFrac = Math.max(0, bss.hp / bss.maxHp);
   const barGrad = ctx.createLinearGradient(-barW / 2, 0, barW / 2, 0);
-  barGrad.addColorStop(0, '#ff2020');
-  barGrad.addColorStop(0.5, '#ff7020');
-  barGrad.addColorStop(1, '#ffc020');
+  barGrad.addColorStop(0, '#ff1a1a');
+  barGrad.addColorStop(0.5, '#ff7010');
+  barGrad.addColorStop(1, '#ffc820');
 
   ctx.fillStyle = barGrad;
   ctx.fillRect(-barW / 2, barY, barW * hpFrac, barH);
 
   ctx.strokeStyle = '#ffd700';
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = 2;
   ctx.strokeRect(-barW / 2, barY, barW, barH);
 
-  ctx.font = 'bold 11px sans-serif';
+  ctx.font = 'bold 12px sans-serif';
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
-  ctx.fillText(`👹 WEREBEAR ANCESTRAL · ${Math.ceil(bss.hp).toLocaleString()} HP`, 0, barY - 6);
+  ctx.shadowColor = '#000';
+  ctx.shadowBlur = 4;
+  ctx.fillText(`👹 WEREBEAR ANCESTRAL · ${Math.ceil(bss.hp).toLocaleString()} HP`, 0, barY - 8);
+  ctx.shadowBlur = 0;
 
-  if (action === 'attack02') {
-    ctx.fillStyle = '#ff4757';
+  if (currentAction === 'attack02') {
+    ctx.fillStyle = '#ff3838';
+    ctx.font = '900 14px sans-serif';
+    ctx.fillText('💥 ¡APLASTAMIENTO SÍSMICO!', 0, barY - 24);
+  } else if (currentAction === 'attack03') {
+    ctx.fillStyle = '#ff9900';
+    ctx.font = '900 14px sans-serif';
+    ctx.fillText('⚡ ¡FURIA DESGARRADORA!', 0, barY - 24);
+  } else if (currentAction === 'attack01') {
+    ctx.fillStyle = '#ffeaa7';
     ctx.font = 'bold 12px sans-serif';
-    ctx.fillText('💥 ¡APLASTAMIENTO SÍSMICO!', 0, barY - 20);
-  } else if (action === 'attack03') {
-    ctx.fillStyle = '#ffa502';
-    ctx.font = 'bold 12px sans-serif';
-    ctx.fillText('⚡ ¡FURIA DESGARRADORA!', 0, barY - 20);
+    ctx.fillText('🐾 ¡ZARPAZO BRUTAL!', 0, barY - 22);
   }
 
   ctx.restore();

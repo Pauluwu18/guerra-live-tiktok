@@ -287,9 +287,10 @@ export class Battle {
       angle: Math.PI,
       action: 'idle',
       actionTimer: 0,
-      cd01: 1.0,
-      cd02: 6.0,
-      cd03: 3.5,
+      actionSeq: 0,
+      cd01: 0.3,
+      cd02: 2.0,
+      cd03: 0.8,
       hurtTimer: 0,
       hitTriggered: false
     };
@@ -692,7 +693,9 @@ export class Battle {
     const finalHpLoss = damage - absorbed;
     target.hp = Math.max(0, target.hp - finalHpLoss);
     if (target === this.boss && this.boss.action !== 'death') {
-      this.boss.hurtTimer = 0.35;
+      if (opts.isSuper || damage >= 100) {
+        this.boss.hurtTimer = 0.35;
+      }
     }
 
     // 5. CONSUMO DE ESTAMINA / GUARD BREAK — Solo en 1vs1
@@ -1089,21 +1092,24 @@ export class Battle {
             } else {
               this.boss.hitTriggered = false;
 
-              if (this.boss.cd02 <= 0 && minDist < 240) {
+              if (this.boss.cd02 <= 0 && minDist < 270) {
                 this.boss.action = 'attack02';
                 this.boss.actionTimer = 1.3;
-                this.boss.cd02 = 6.5;
-              } else if (this.boss.cd03 <= 0 && minDist < 140) {
+                this.boss.cd02 = 5.0;
+                this.boss.actionSeq = (this.boss.actionSeq || 0) + 1;
+              } else if (this.boss.cd03 <= 0 && minDist < 165) {
                 this.boss.action = 'attack03';
                 this.boss.actionTimer = 0.9;
-                this.boss.cd03 = 4.2;
-              } else if (this.boss.cd01 <= 0 && minDist < 110) {
+                this.boss.cd03 = 3.2;
+                this.boss.actionSeq = (this.boss.actionSeq || 0) + 1;
+              } else if (this.boss.cd01 <= 0 && minDist < 135) {
                 this.boss.action = 'attack01';
                 this.boss.actionTimer = 0.8;
-                this.boss.cd01 = 1.8;
-              } else if (minDist > 85) {
+                this.boss.cd01 = 1.2;
+                this.boss.actionSeq = (this.boss.actionSeq || 0) + 1;
+              } else if (minDist > 80) {
                 this.boss.action = 'walk';
-                const bossSpeed = 65;
+                const bossSpeed = 85;
                 this.boss.x += Math.cos(this.boss.angle) * bossSpeed * dt;
                 this.boss.y += Math.sin(this.boss.angle) * bossSpeed * dt;
 
