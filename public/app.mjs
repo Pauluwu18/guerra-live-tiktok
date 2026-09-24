@@ -1239,26 +1239,34 @@ function renderStaticDuelPit(ctx, w, h) {
   const sx = w / 1200, sy = h / 760;
   const floorY = 590 * sy;
 
-  // Cielo nocturno rojizo y eclipse: escenario lateral independiente.
+  // Cielo de torneo intenso: violeta, azul y carmesí para dar más color sin
+  // perder el contraste de los combatientes.
   const sky = ctx.createLinearGradient(0, 0, 0, floorY);
-  sky.addColorStop(0, '#07070d');
-  sky.addColorStop(0.48, '#24101a');
-  sky.addColorStop(1, '#7b261b');
+  sky.addColorStop(0, '#101456');
+  sky.addColorStop(0.38, '#432064');
+  sky.addColorStop(0.72, '#a92f62');
+  sky.addColorStop(1, '#ef7137');
   ctx.fillStyle = sky; ctx.fillRect(0, 0, w, floorY);
+  for (let i=0;i<42;i++) {
+    const starX=((i*197+43)%1160+20)*sx, starY=((i*83+17)%270+38)*sy;
+    circle(ctx,starX,starY,(i%3?1.2:2.1)*sx,i%5===0?'#73e7ff':'#ffe6a3');
+  }
   const eclipse = ctx.createRadialGradient(600*sx, 210*sy, 12*sx, 600*sx, 210*sy, 105*sx);
-  eclipse.addColorStop(0, '#0a0709'); eclipse.addColorStop(0.58, '#13090b');
-  eclipse.addColorStop(0.64, '#ff9b43'); eclipse.addColorStop(0.72, 'rgba(208,52,22,.35)');
-  eclipse.addColorStop(1, 'rgba(80,8,10,0)');
+  eclipse.addColorStop(0, '#16112f'); eclipse.addColorStop(0.56, '#21113b');
+  eclipse.addColorStop(0.62, '#ffe45b'); eclipse.addColorStop(0.69, '#ff6e3a');
+  eclipse.addColorStop(0.78, 'rgba(255,47,151,.42)'); eclipse.addColorStop(1, 'rgba(77,38,180,0)');
   ctx.fillStyle = eclipse; ctx.fillRect(450*sx, 55*sy, 300*sx, 310*sy);
 
   // Montañas y fortaleza en silueta, construidas una sola vez en el caché.
-  ctx.fillStyle = '#120d14';
+  ctx.fillStyle = '#241b58';
   ctx.beginPath(); ctx.moveTo(0,floorY); ctx.lineTo(0,350*sy); ctx.lineTo(130*sx,230*sy);
   ctx.lineTo(240*sx,365*sy); ctx.lineTo(390*sx,205*sy); ctx.lineTo(530*sx,360*sy);
   ctx.lineTo(720*sx,190*sy); ctx.lineTo(880*sx,350*sy); ctx.lineTo(1040*sx,220*sy);
   ctx.lineTo(w,350*sy); ctx.lineTo(w,floorY); ctx.closePath(); ctx.fill();
 
-  ctx.fillStyle = '#17131a';
+  const fortress = ctx.createLinearGradient(0,260*sy,0,525*sy);
+  fortress.addColorStop(0,'#493365'); fortress.addColorStop(.55,'#292044'); fortress.addColorStop(1,'#15152b');
+  ctx.fillStyle = fortress;
   ctx.fillRect(180*sx, 300*sy, 840*sx, 225*sy);
   for (let x = 205; x <= 995; x += 79) {
     ctx.fillRect(x*sx, 258*sy, 43*sx, 267*sy);
@@ -1266,13 +1274,24 @@ function renderStaticDuelPit(ctx, w, h) {
   }
   // Galería de arcos con público en contraluz.
   for (let x = 235; x <= 920; x += 98) {
-    ctx.fillStyle = '#08080c';
+    ctx.fillStyle = '#0a1024';
     ctx.beginPath(); ctx.arc((x+32)*sx,390*sy,32*sx,Math.PI,0); ctx.lineTo((x+64)*sx,505*sy); ctx.lineTo(x*sx,505*sy); ctx.closePath(); ctx.fill();
-    for (let i=0;i<5;i++) circle(ctx,(x+8+i*12)*sx,(450+(i%2)*7)*sy,5*sx,i%2?'#2d1b1d':'#121017');
+    const crowd=['#65e6ff','#ffcf4c','#ff5b8d','#73ff8d','#b77cff'];
+    for (let i=0;i<5;i++) circle(ctx,(x+8+i*12)*sx,(450+(i%2)*7)*sy,5*sx,crowd[(i+x)%crowd.length]);
+  }
+
+  // Guirnaldas y pendones de torneo sobre las gradas.
+  ctx.strokeStyle='rgba(255,225,130,.72)'; ctx.lineWidth=2*sx;
+  ctx.beginPath(); ctx.moveTo(165*sx,286*sy); ctx.quadraticCurveTo(600*sx,350*sy,1035*sx,286*sy); ctx.stroke();
+  const pennants=['#23d8c3','#ffd447','#ff526f','#8b6dff'];
+  for(let i=0;i<13;i++) {
+    const px=(205+i*66)*sx, py=(299+Math.abs(6-i)*4.1)*sy;
+    ctx.fillStyle=pennants[i%pennants.length];
+    ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo((px+24*sx),py); ctx.lineTo((px+12*sx),(py+28*sy)); ctx.closePath(); ctx.fill();
   }
 
   // Estandartes de las dos facciones.
-  for (const [x, color, edge, mark] of [[205,'#174d28','#8dff72','JADE'],[925,'#681b20','#ff826b','CORAL']]) {
+  for (const [x, color, edge, mark] of [[205,'#087e65','#8dffcf','JADE'],[925,'#b51f55','#ff9bbb','CORAL']]) {
     ctx.fillStyle=color; ctx.fillRect(x*sx,300*sy,70*sx,142*sy);
     ctx.strokeStyle=edge; ctx.lineWidth=3*sx; ctx.strokeRect(x*sx,300*sy,70*sx,142*sy);
     ctx.fillStyle=edge; ctx.font=`900 ${Math.round(17*sx)}px sans-serif`; ctx.textAlign='center';
@@ -1281,22 +1300,22 @@ function renderStaticDuelPit(ctx, w, h) {
 
   // Piso de piedra frontal con línea de combate totalmente horizontal.
   const floor = ctx.createLinearGradient(0, floorY-85*sy, 0, h);
-  floor.addColorStop(0,'#62503e'); floor.addColorStop(.12,'#30271f'); floor.addColorStop(1,'#09090b');
+  floor.addColorStop(0,'#77638f'); floor.addColorStop(.12,'#3c3155'); floor.addColorStop(.55,'#181c39'); floor.addColorStop(1,'#090b20');
   ctx.fillStyle=floor; ctx.fillRect(0,floorY-85*sy,w,h-floorY+85*sy);
-  ctx.strokeStyle='#a77d4c'; ctx.lineWidth=4*sy;
+  ctx.strokeStyle='#ffd260'; ctx.lineWidth=4*sy;
   ctx.beginPath(); ctx.moveTo(0,floorY+8*sy); ctx.lineTo(w,floorY+8*sy); ctx.stroke();
-  ctx.strokeStyle='rgba(185,140,90,.22)'; ctx.lineWidth=2;
+  ctx.strokeStyle='rgba(104,220,255,.24)'; ctx.lineWidth=2;
   for (let y=630;y<760;y+=42) { ctx.beginPath(); ctx.moveTo(0,y*sy); ctx.lineTo(w,y*sy); ctx.stroke(); }
   for (let x=-100;x<1300;x+=105) { ctx.beginPath(); ctx.moveTo(600*sx,floorY-75*sy); ctx.lineTo(x*sx,h); ctx.stroke(); }
-  ctx.fillStyle='rgba(95,12,10,.34)';
+  ctx.fillStyle='rgba(224,35,92,.30)';
   ctx.beginPath(); ctx.ellipse(600*sx,620*sy,78*sx,18*sy,0,0,Math.PI*2); ctx.fill();
 
   // Columnas y braseros frontales enmarcan la pelea.
   for (const x of [105,1095]) {
-    ctx.fillStyle='#151218'; ctx.fillRect((x-27)*sx,320*sy,54*sx,275*sy);
-    ctx.fillStyle='#44382e'; ctx.fillRect((x-34)*sx,330*sy,68*sx,18*sy);
+    ctx.fillStyle='#222450'; ctx.fillRect((x-27)*sx,320*sy,54*sx,275*sy);
+    ctx.fillStyle=x<600?'#159b91':'#a82e6c'; ctx.fillRect((x-34)*sx,330*sy,68*sx,18*sy);
     ctx.fillRect((x-42)*sx,565*sy,84*sx,30*sy);
-    ctx.fillStyle='#201717'; ctx.beginPath(); ctx.ellipse(x*sx,430*sy,42*sx,14*sy,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#31213f'; ctx.beginPath(); ctx.ellipse(x*sx,430*sy,42*sx,14*sy,0,0,Math.PI*2); ctx.fill();
   }
   ctx.textAlign='left';
 }
@@ -1331,13 +1350,15 @@ function duelTerrain(ctx, w, h, t = Date.now()) {
   for (let i=0;i<2;i++) {
     const bx=(i?1095:105)*sx, by=414*sy;
     const pulse=.86+.14*Math.sin(t*.012+i*2.4);
-    circle(ctx,bx,by,38*sx*pulse,'rgba(255,75,15,.16)');
-    circle(ctx,bx,by,19*sx*pulse,'#e94b18');
-    circle(ctx,bx+Math.sin(t*.009+i)*5*sx,by-9*sy,12*sx*pulse,'#ffb52e');
-    circle(ctx,bx,by-13*sy,5*sx,'#fff0a0');
+    const outer=i?'rgba(255,46,145,.24)':'rgba(24,230,207,.24)';
+    const flame=i?'#ff3b88':'#18cfc2';
+    circle(ctx,bx,by,42*sx*pulse,outer);
+    circle(ctx,bx,by,19*sx*pulse,flame);
+    circle(ctx,bx+Math.sin(t*.009+i)*5*sx,by-9*sy,12*sx*pulse,i?'#ff9b45':'#62f5df');
+    circle(ctx,bx,by-13*sy,5*sx,'#fff6b0');
     for(let j=0;j<3;j++) {
       const age=(t*.025+j*13+i*7)%35;
-      circle(ctx,bx+Math.sin(t*.008+j)*11*sx,by-age*sy,1.7*sx,'#ffc04a');
+      circle(ctx,bx+Math.sin(t*.008+j)*11*sx,by-age*sy,1.7*sx,i?'#ffcf4a':'#70f7ff');
     }
   }
 }
