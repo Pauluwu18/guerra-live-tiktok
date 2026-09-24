@@ -133,6 +133,9 @@ const boundedCount = (n, fallback = 1) => Number.isFinite(Number(n))
 export const MAX_EFFECTS = 160;
 export const BOSS_BODY_RADIUS = 38;
 export const BOSS_PLAYER_RANGE = 70;
+export const DUEL_GROUND_Y = 590;
+export const DUEL_LEFT_WALL = 145;
+export const DUEL_RIGHT_WALL = 1055;
 export function validConfig(raw = {}) {
   if (!raw || typeof raw !== 'object') raw = {};
   const c = structuredClone(defaults);
@@ -443,8 +446,8 @@ export class Battle {
     const i = this.players.filter(p => p.team === team).length;
     let spawnX, spawnY;
     if (this.mode === 'duel') {
-      spawnX = team ? 690 : 510;
-      spawnY = 380;
+      spawnX = team ? 860 : 340;
+      spawnY = DUEL_GROUND_Y;
     } else if (this.mode === 'boss') {
       const angle = (i / 30) * Math.PI * 2;
       spawnX = 600 + Math.cos(angle) * 350;
@@ -773,9 +776,9 @@ export class Battle {
 
     // 1. ESQUIVO (DODGE) — Solo en 1vs1
     if (isDuel && !isSuper && (target.stunTimer || 0) <= 0 && Math.random() < (target.dodgeChance || 0)) {
-      const evadeAngle = (target.angle || 0) + (Math.random() < 0.5 ? 1.6 : -1.6);
-      target.x += Math.cos(evadeAngle) * 36;
-      target.y += Math.sin(evadeAngle) * 36;
+      const away = source ? Math.sign(target.x - source.x) || (target.team ? 1 : -1) : (target.team ? 1 : -1);
+      target.x = Math.max(DUEL_LEFT_WALL, Math.min(DUEL_RIGHT_WALL, target.x + away * 52));
+      target.y = DUEL_GROUND_Y;
       target.isDodging = 0.25;
       if (source) source.comboHits = 0;
       this.effect({
@@ -1057,7 +1060,21 @@ export class Battle {
       p.angle    = Math.atan2(dy, dx);
 
       // ── Movimiento e IA Táctica ──────────────────────────────────────────
-      if (p.id === control.id && (control.x || control.y)) {
+      if (this.mode === 'duel') {
+        // Plano lateral de juego de pelea: ambos campeones permanecen sobre la
+        // misma línea de suelo y usan pasos hacia delante/atrás sobre el eje X.
+        const direction = Math.sign(dx) || (p.team ? -1 : 1);
+        if (p.id === control.id && control.x) {
+          p.x += Math.sign(control.x) * 125 * dt;
+        } else if (Math.abs(dx) > 108) {
+          p.x += direction * 92 * dt;
+        } else if (Math.abs(dx) < 82) {
+          p.x -= direction * 45 * dt;
+        } else if (p.cd > 0.55) {
+          p.x -= direction * 20 * dt;
+        }
+        p.y = DUEL_GROUND_Y;
+      } else if (p.id === control.id && (control.x || control.y)) {
         const l = Math.hypot(control.x, control.y) || 1;
         p.x += (control.x / l) * 110 * dt;
         p.y += (control.y / l) * 110 * dt;
@@ -1126,18 +1143,21 @@ export class Battle {
 
       // ── Colisión con el muro elíptico del Coliseo ──────────────────────
       const isDuel = this.mode === 'duel';
-      const ACX = 600, ACY = 380;
-      const AAX = isDuel ? 240 : 495;
-      const AAY = isDuel ? 160 : 285;
-      const nx = (p.x - ACX) / AAX;
-      const ny = (p.y - ACY) / AAY;
-      const wallD2 = nx * nx + ny * ny;
-      if (wallD2 > 1) {
-        const wd = Math.sqrt(wallD2);
-        p.x = ACX + (nx / wd) * AAX * 0.96;
-        p.y = ACY + (ny / wd) * AAY * 0.96;
-        p.wander.ox += 2.0;
-        p.wander.oy += 2.0;
+      if (isDuel) {
+        p.x = Math.max(DUEL_LEFT_WALL, Math.min(DUEL_RIGHT_WALL, p.x));
+        p.y = DUEL_GROUND_Y;
+      } else {
+        const ACX = 600, ACY = 380, AAX = 495, AAY = 285;
+        const nx = (p.x - ACX) / AAX;
+        const ny = (p.y - ACY) / AAY;
+        const wallD2 = nx * nx + ny * ny;
+        if (wallD2 > 1) {
+          const wd = Math.sqrt(wallD2);
+          p.x = ACX + (nx / wd) * AAX * 0.96;
+          p.y = ACY + (ny / wd) * AAY * 0.96;
+          p.wander.ox += 2.0;
+          p.wander.oy += 2.0;
+        }
       }
 
       // El cuerpo del jefe tiene una caja pequeña y visible. Evita que los
@@ -1157,7 +1177,7 @@ export class Battle {
       }
 
       // ── Ataque cuerpo a cuerpo ─────────────────────────────────────────
-      const range = this.mode === 'boss' ? BOSS_PLAYER_RANGE : 65;
+      const range = this.mode === 'boss' ? BOSS_PLAYER_RANGE : this.mode === 'duel' ? 112 : 65;
       if (dist < range && p.cd <= 0 && (p.stunTimer || 0) <= 0) {
         const isFrenzy = (p.frenzyTimer || 0) > 0;
         p.cd = isFrenzy ? 0.42 : (p.weapon === 'legend' ? 0.7 : p.weapon === 'royal' ? 0.9 : 1.1);

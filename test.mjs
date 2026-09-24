@@ -153,10 +153,12 @@ assert.equal(validConfig({ likesStep: 0 }).likesStep, 1);
   const activeCoral = duel.players.find(p => p.team === 1);
   assert.equal(activeCoral.armor, 50, 'Regalo equipa armadura al campeón Coral');
 
-  // Movimiento y colisión en el foso íntimo
+  // Movimiento lateral sobre el suelo de la arena independiente
   duel.update(0.04);
-  assert.ok(activeJade.x > 510, 'Campeón Jade avanza hacia el centro del foso');
-  assert.ok(activeCoral.x < 690, 'Campeón Coral avanza hacia el centro del foso');
+  assert.ok(activeJade.x > 340, 'Campeón Jade avanza desde el extremo izquierdo');
+  assert.ok(activeCoral.x < 860, 'Campeón Coral avanza desde el extremo derecho');
+  assert.equal(activeJade.y, 590, 'Campeón Jade permanece sobre la línea del suelo');
+  assert.equal(activeCoral.y, 590, 'Campeón Coral permanece sobre la línea del suelo');
 }
 
 // 15. Mecánicas Complejas de Combate 1 vs 1 (Esquivo, Parry, Crítico, Estamina y Guard Break)
@@ -175,6 +177,7 @@ assert.equal(validConfig({ likesStep: 0 }).likesStep, 1);
   const dodgeRes = b.hit(p2, 50, p1);
   assert.equal(dodgeRes.result, 'dodge', 'Debe esquivar el golpe');
   assert.equal(p2.hp, hpBeforeDodge, 'No debe sufrir daño al esquivar');
+  assert.equal(p2.y, 590, 'El esquivo lateral no separa al campeón del suelo');
   assert.ok(b.effects.some(e => e.kind === 'combat_text' && /esquivad/i.test(e.text)), 'Emite texto flotante de esquivo');
 
   // B. Prueba de Parry / Bloqueo (Parry garantizado)

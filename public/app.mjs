@@ -678,16 +678,28 @@ function handleState(newState) {
 
   if (state.mode === 'duel') {
     $('#mission').textContent = 'MISIÓN / DUELO DE CAMPEONES 1 VS 1';
+    $('#arena').setAttribute('aria-label', 'Arena lateral medieval para duelo de campeones');
+    const arenaHelp = $$('.arena-foot span');
+    if (arenaHelp[0]) arenaHelp[0].textContent = 'A / D · MOVER CAMPEÓN SELECCIONADO';
+    if (arenaHelp[1]) arenaHelp[1].textContent = 'COMBATE LATERAL AUTOMÁTICO · CLIC PARA INSPECCIONAR';
     const pJ = state.players.find(p => p.team === 0);
     const pC = state.players.find(p => p.team === 1);
     const jHp = Math.ceil(pJ?.hp || 0);
     const cHp = Math.ceil(pC?.hp || 0);
     $('#score').innerHTML = `JADE <b>${jHp} HP</b> <span>VS</span> <b>${cHp} HP</b> CORAL`;
   } else if (state.mode === 'boss') {
+    $('#arena').setAttribute('aria-label', 'Campo de batalla medieval contra el Werebear');
+    const arenaHelp = $$('.arena-foot span');
+    if (arenaHelp[0]) arenaHelp[0].textContent = 'W A S D / MOVER CABALLERO SELECCIONADO';
+    if (arenaHelp[1]) arenaHelp[1].textContent = 'COMBATE AUTOMÁTICO · CLIC PARA INSPECCIONAR GUERRERO';
     $('#mission').textContent = 'MISIÓN / ASALTO AL WEREBEAR ANCESTRAL';
     const a = state.players.filter(p => p.team === 0 && p.hp > 0).length;
     $('#score').innerHTML = `JADE <b>${a}</b> <span>VS</span> WEREBEAR <b>${Math.ceil(state.boss?.hp || 0).toLocaleString()} HP</b>`;
   } else {
+    $('#arena').setAttribute('aria-label', 'Campo de batalla medieval en 2D con vista aérea');
+    const arenaHelp = $$('.arena-foot span');
+    if (arenaHelp[0]) arenaHelp[0].textContent = 'W A S D / MOVER CABALLERO SELECCIONADO';
+    if (arenaHelp[1]) arenaHelp[1].textContent = 'COMBATE AUTOMÁTICO · CLIC PARA INSPECCIONAR GUERRERO';
     $('#mission').textContent = 'MISIÓN / GUERRA 20 VS 20';
     const a = state.players.filter(p => p.team === 0 && p.hp > 0).length;
     const b = state.players.filter(p => p.team === 1 && p.hp > 0).length;
@@ -1225,111 +1237,68 @@ function renderStaticColosseum(ctx, w, h) {
 
 function renderStaticDuelPit(ctx, w, h) {
   const sx = w / 1200, sy = h / 760;
-  const CX = 600 * sx, CY = 380 * sy;
-  const AX = 240 * sx, AY = 160 * sy;
+  const floorY = 590 * sy;
 
-  // 1. Fondo exterior oscuro del foso de honor
-  ctx.fillStyle = '#0c0804';
-  ctx.fillRect(0, 0, w, h);
+  // Cielo nocturno rojizo y eclipse: escenario lateral independiente.
+  const sky = ctx.createLinearGradient(0, 0, 0, floorY);
+  sky.addColorStop(0, '#07070d');
+  sky.addColorStop(0.48, '#24101a');
+  sky.addColorStop(1, '#7b261b');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, w, floorY);
+  const eclipse = ctx.createRadialGradient(600*sx, 210*sy, 12*sx, 600*sx, 210*sy, 105*sx);
+  eclipse.addColorStop(0, '#0a0709'); eclipse.addColorStop(0.58, '#13090b');
+  eclipse.addColorStop(0.64, '#ff9b43'); eclipse.addColorStop(0.72, 'rgba(208,52,22,.35)');
+  eclipse.addColorStop(1, 'rgba(80,8,10,0)');
+  ctx.fillStyle = eclipse; ctx.fillRect(450*sx, 55*sy, 300*sx, 310*sy);
 
-  // 2. Gradas de piedra íntimas alrededor del foso
-  ellipsePath(ctx, CX, CY, AX + 90 * sx, AY + 65 * sy);
-  ctx.fillStyle = '#1c140a'; ctx.fill();
-  ellipsePath(ctx, CX, CY, AX + 55 * sx, AY + 40 * sy);
-  ctx.fillStyle = '#2b1f11'; ctx.fill();
+  // Montañas y fortaleza en silueta, construidas una sola vez en el caché.
+  ctx.fillStyle = '#120d14';
+  ctx.beginPath(); ctx.moveTo(0,floorY); ctx.lineTo(0,350*sy); ctx.lineTo(130*sx,230*sy);
+  ctx.lineTo(240*sx,365*sy); ctx.lineTo(390*sx,205*sy); ctx.lineTo(530*sx,360*sy);
+  ctx.lineTo(720*sx,190*sy); ctx.lineTo(880*sx,350*sy); ctx.lineTo(1040*sx,220*sy);
+  ctx.lineTo(w,350*sy); ctx.lineTo(w,floorY); ctx.closePath(); ctx.fill();
 
-  // 3. Muro de contención de roca tallada
-  ellipsePath(ctx, CX, CY, AX + 18 * sx, AY + 13 * sy);
-  ctx.fillStyle = '#4a341e'; ctx.fill();
-  ctx.strokeStyle = '#7c5832'; ctx.lineWidth = 5 * sx; ctx.stroke();
-
-  // 4. Clip arena del foso
-  ctx.save();
-  ellipsePath(ctx, CX, CY, AX, AY);
-  ctx.clip();
-
-  // 5. Suelo de arena dorada cálida
-  const sandGrad = ctx.createRadialGradient(CX, CY, 0, CX, CY, AX);
-  sandGrad.addColorStop(0,    '#d6b274');
-  sandGrad.addColorStop(0.55, '#c29b46');
-  sandGrad.addColorStop(0.85, '#a47e2c');
-  sandGrad.addColorStop(1,    '#825e1a');
-  ctx.fillStyle = sandGrad; ctx.fillRect(0, 0, w, h);
-
-  // 6. Textura de arena y polvo
-  for (let i = 0; i < 90; i++) {
-    const rx = CX + ((i * 137 + 11) % (Math.round(AX * 18)) / 9 - AX) * 0.92;
-    const ry = CY + ((i * 199 + 47) % (Math.round(AY * 18)) / 9 - AY) * 0.88;
-    const nr = ((i * 83 + 19) % 8) + 2;
-    ctx.fillStyle = i % 2 === 0 ? 'rgba(70,40,5,0.08)' : 'rgba(240,210,120,0.07)';
-    ctx.beginPath(); ctx.ellipse(rx, ry, nr, nr * 0.55, (i * 0.8) % Math.PI, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#17131a';
+  ctx.fillRect(180*sx, 300*sy, 840*sx, 225*sy);
+  for (let x = 205; x <= 995; x += 79) {
+    ctx.fillRect(x*sx, 258*sy, 43*sx, 267*sy);
+    ctx.beginPath(); ctx.moveTo(x*sx,258*sy); ctx.lineTo((x+21.5)*sx,225*sy); ctx.lineTo((x+43)*sx,258*sy); ctx.fill();
+  }
+  // Galería de arcos con público en contraluz.
+  for (let x = 235; x <= 920; x += 98) {
+    ctx.fillStyle = '#08080c';
+    ctx.beginPath(); ctx.arc((x+32)*sx,390*sy,32*sx,Math.PI,0); ctx.lineTo((x+64)*sx,505*sy); ctx.lineTo(x*sx,505*sy); ctx.closePath(); ctx.fill();
+    for (let i=0;i<5;i++) circle(ctx,(x+8+i*12)*sx,(450+(i%2)*7)*sy,5*sx,i%2?'#2d1b1d':'#121017');
   }
 
-  // 7. Manchas de sangre de batallas épicas
-  for (const [rx, ry, rr, alpha] of [
-    [-0.25, 0.28, 14, 0.22], [0.30, -0.22, 16, 0.25],
-    [0.05, 0.35, 12, 0.18], [-0.35, -0.15, 15, 0.20],
-    [0.15, -0.32, 10, 0.16]
-  ]) {
-    circle(ctx, CX + rx * AX, CY + ry * AY, rr * sx, `rgba(80,8,4,${alpha})`);
+  // Estandartes de las dos facciones.
+  for (const [x, color, edge, mark] of [[205,'#174d28','#8dff72','JADE'],[925,'#681b20','#ff826b','CORAL']]) {
+    ctx.fillStyle=color; ctx.fillRect(x*sx,300*sy,70*sx,142*sy);
+    ctx.strokeStyle=edge; ctx.lineWidth=3*sx; ctx.strokeRect(x*sx,300*sy,70*sx,142*sy);
+    ctx.fillStyle=edge; ctx.font=`900 ${Math.round(17*sx)}px sans-serif`; ctx.textAlign='center';
+    ctx.fillText(mark,(x+35)*sx,375*sy);
   }
 
-  // 8. Runa grabada en la arena en el centro
-  ctx.strokeStyle = 'rgba(120,80,20,0.35)'; ctx.lineWidth = 2.5 * sx;
-  ctx.beginPath(); ctx.ellipse(CX, CY, 45 * sx, 30 * sy, 0, 0, Math.PI * 2); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(CX - 55 * sx, CY); ctx.lineTo(CX + 55 * sx, CY); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(CX, CY - 36 * sy); ctx.lineTo(CX + 36 * sy, CY); ctx.stroke();
+  // Piso de piedra frontal con línea de combate totalmente horizontal.
+  const floor = ctx.createLinearGradient(0, floorY-85*sy, 0, h);
+  floor.addColorStop(0,'#62503e'); floor.addColorStop(.12,'#30271f'); floor.addColorStop(1,'#09090b');
+  ctx.fillStyle=floor; ctx.fillRect(0,floorY-85*sy,w,h-floorY+85*sy);
+  ctx.strokeStyle='#a77d4c'; ctx.lineWidth=4*sy;
+  ctx.beginPath(); ctx.moveTo(0,floorY+8*sy); ctx.lineTo(w,floorY+8*sy); ctx.stroke();
+  ctx.strokeStyle='rgba(185,140,90,.22)'; ctx.lineWidth=2;
+  for (let y=630;y<760;y+=42) { ctx.beginPath(); ctx.moveTo(0,y*sy); ctx.lineTo(w,y*sy); ctx.stroke(); }
+  for (let x=-100;x<1300;x+=105) { ctx.beginPath(); ctx.moveTo(600*sx,floorY-75*sy); ctx.lineTo(x*sx,h); ctx.stroke(); }
+  ctx.fillStyle='rgba(95,12,10,.34)';
+  ctx.beginPath(); ctx.ellipse(600*sx,620*sy,78*sx,18*sy,0,0,Math.PI*2); ctx.fill();
 
-  ctx.restore(); // fin clip foso
-
-  // 9. Postes de madera con cadenas
-  for (let i = 0; i < 12; i++) {
-    const a = (i / 12) * Math.PI * 2;
-    const px = CX + Math.cos(a) * (AX + 8 * sx);
-    const py = CY + Math.sin(a) * (AY + 6 * sy);
-    circle(ctx, px + 2 * sx, py + 2 * sy, 5 * sx, 'rgba(0,0,0,0.5)');
-    circle(ctx, px, py, 5 * sx, '#52381e');
-    circle(ctx, px, py, 3 * sx, '#805830');
+  // Columnas y braseros frontales enmarcan la pelea.
+  for (const x of [105,1095]) {
+    ctx.fillStyle='#151218'; ctx.fillRect((x-27)*sx,320*sy,54*sx,275*sy);
+    ctx.fillStyle='#44382e'; ctx.fillRect((x-34)*sx,330*sy,68*sx,18*sy);
+    ctx.fillRect((x-42)*sx,565*sy,84*sx,30*sy);
+    ctx.fillStyle='#201717'; ctx.beginPath(); ctx.ellipse(x*sx,430*sy,42*sx,14*sy,0,0,Math.PI*2); ctx.fill();
   }
-
-  // 10. Bases fijas de pebeteros
-  for (let i = 0; i < 4; i++) {
-    const a = i * Math.PI / 2 + Math.PI / 4;
-    const bx = CX + Math.cos(a) * (AX + 38 * sx);
-    const by = CY + Math.sin(a) * (AY + 26 * sy);
-    circle(ctx, bx + 2 * sx, by + 3 * sy, 12 * sx, 'rgba(0,0,0,0.6)');
-    circle(ctx, bx, by, 12 * sx, '#2b1c10');
-    circle(ctx, bx, by, 9 * sx, '#5a3d24');
-  }
-
-  // 11. Banderas heráldicas a los costados
-  // Estandarte Jade (Izquierda)
-  ctx.save();
-  ctx.fillStyle = '#174d1a';
-  ctx.fillRect(CX - AX - 50 * sx, CY - 40 * sy, 22 * sx, 80 * sy);
-  ctx.strokeStyle = '#c6fc65'; ctx.lineWidth = 1.5 * sx;
-  ctx.strokeRect(CX - AX - 50 * sx, CY - 40 * sy, 22 * sx, 80 * sy);
-  ctx.font = `bold ${Math.round(10 * sx)}px sans-serif`;
-  ctx.fillStyle = '#c6fc65'; ctx.textAlign = 'center';
-  ctx.fillText('J', CX - AX - 39 * sx, CY - 15 * sy);
-  ctx.fillText('A', CX - AX - 39 * sx, CY);
-  ctx.fillText('D', CX - AX - 39 * sx, CY + 15 * sy);
-  ctx.fillText('E', CX - AX - 39 * sx, CY + 30 * sy);
-  ctx.restore();
-
-  // Estandarte Coral (Derecha)
-  ctx.save();
-  ctx.fillStyle = '#5c1616';
-  ctx.fillRect(CX + AX + 28 * sx, CY - 40 * sy, 22 * sx, 80 * sy);
-  ctx.strokeStyle = '#ff816a'; ctx.lineWidth = 1.5 * sx;
-  ctx.strokeRect(CX + AX + 28 * sx, CY - 40 * sy, 22 * sx, 80 * sy);
-  ctx.font = `bold ${Math.round(10 * sx)}px sans-serif`;
-  ctx.fillStyle = '#ff816a'; ctx.textAlign = 'center';
-  ctx.fillText('C', CX + AX + 39 * sx, CY - 15 * sy);
-  ctx.fillText('O', CX + AX + 39 * sx, CY);
-  ctx.fillText('R', CX + AX + 39 * sx, CY + 15 * sy);
-  ctx.fillText('A', CX + AX + 39 * sx, CY + 30 * sy);
-  ctx.restore();
+  ctx.textAlign='left';
 }
 
 function getCachedColosseum() {
@@ -1358,20 +1327,18 @@ function terrain(ctx, w, h) {
 
 function duelTerrain(ctx, w, h, t = Date.now()) {
   ctx.drawImage(getCachedDuelPit(), 0, 0, w, h);
-  // Llamas animadas ligeras en los pebeteros (sin recrear gradientes radiales complejos)
   const sx = w / 1200, sy = h / 760;
-  const CX = 600 * sx, CY = 380 * sy;
-  const AX = 240 * sx, AY = 160 * sy;
-  for (let i = 0; i < 4; i++) {
-    const a = i * Math.PI / 2 + Math.PI / 4;
-    const bx = CX + Math.cos(a) * (AX + 38 * sx);
-    const by = CY + Math.sin(a) * (AY + 26 * sy);
-    const fPulse = 0.85 + 0.15 * Math.sin(t * 0.01 + i * 2);
-    circle(ctx, bx, by - 4 * sy, 14 * sx * fPulse, '#ffaa00');
-    circle(ctx, bx, by - 4 * sy, 7 * sx * fPulse, '#ffffcc');
-    const sparkY = by - 8 * sy - ((t * 0.03 + i * 37) % 20) * sy;
-    const sparkX = bx + Math.sin(t * 0.01 + i) * 6 * sx;
-    circle(ctx, sparkX, sparkY, 1.8 * sx, '#ffe070');
+  for (let i=0;i<2;i++) {
+    const bx=(i?1095:105)*sx, by=414*sy;
+    const pulse=.86+.14*Math.sin(t*.012+i*2.4);
+    circle(ctx,bx,by,38*sx*pulse,'rgba(255,75,15,.16)');
+    circle(ctx,bx,by,19*sx*pulse,'#e94b18');
+    circle(ctx,bx+Math.sin(t*.009+i)*5*sx,by-9*sy,12*sx*pulse,'#ffb52e');
+    circle(ctx,bx,by-13*sy,5*sx,'#fff0a0');
+    for(let j=0;j<3;j++) {
+      const age=(t*.025+j*13+i*7)%35;
+      circle(ctx,bx+Math.sin(t*.008+j)*11*sx,by-age*sy,1.7*sx,'#ffc04a');
+    }
   }
 }
 
@@ -1536,6 +1503,8 @@ function effectSound(e, name, volume) {
 
 // ── GLADIADOR: ANIMADO CON SPRITE 2D DE MEDIBANG (soldado-sheet.png) ───────
 function soldier(ctx, p, t = Date.now(), mode = 'teams') {
+  const isDuel = mode === 'duel';
+  const duelLift = isDuel ? 82 : 0;
   let anim = animState.get(p.id);
   if (!anim) {
     anim = {
@@ -1601,20 +1570,21 @@ function soldier(ctx, p, t = Date.now(), mode = 'teams') {
   }
 
   ctx.save();
-  ctx.translate(anim.rx, anim.ry);
+  ctx.translate(anim.rx, anim.ry - duelLift);
 
   // ── Animación de entrada celestial para nuevos usuarios ────────────────
   const entranceAge = t - anim.entranceTime;
-  let scale = 1.0;
+  const baseScale = isDuel ? 3.35 : 1.0;
+  let scale = baseScale;
   let altitude = 0;
   if (anim.entranceTime > 0 && entranceAge < 1100) {
     const prog = entranceAge / 1100;
     if (prog < 0.5) {
       const dropP = prog / 0.5;
-      scale = 3.0 - (1 - Math.pow(1 - dropP, 3)) * 2.0;
+      scale = baseScale * (1.6 - (1 - Math.pow(1 - dropP, 3)) * 0.6);
       altitude = (1 - dropP) * 110;
     } else {
-      scale = 1.0 + Math.sin((prog - 0.5) * Math.PI * 2) * 0.1;
+      scale = baseScale * (1.0 + Math.sin((prog - 0.5) * Math.PI * 2) * 0.1);
     }
     // Rayo de luz celestial desde el cielo del coliseo
     ctx.save();
@@ -1634,6 +1604,7 @@ function soldier(ctx, p, t = Date.now(), mode = 'teams') {
   if (p.hp <= 0) {
     ctx.globalAlpha = 0.55;
     ctx.save();
+    if (isDuel) ctx.scale(1.85, 1.85);
     const isK = !!(p.isKnight || (p.classLevel && p.classLevel >= 10));
     const deathPack = (isK && knightPacks.death.ready) ? knightPacks.death : (spritePacks.death.ready ? spritePacks.death : null);
     const deathSheet = deathPack ? (isJade ? deathPack.jade : deathPack.coral) : null;
@@ -1665,7 +1636,7 @@ function soldier(ctx, p, t = Date.now(), mode = 'teams') {
   ctx.globalAlpha = Math.max(0.1, 0.34 * (1 - altitude / 140));
   ctx.fillStyle = '#060300';
   ctx.beginPath();
-  ctx.ellipse(3, 6 + altitude * 0.1, 16 * (1 - altitude / 180), 8 * (1 - altitude / 180), 0, 0, Math.PI * 2);
+  ctx.ellipse(3, (isDuel ? 85 : 6) + altitude * 0.1, (isDuel ? 44 : 16) * (1 - altitude / 180), (isDuel ? 11 : 8) * (1 - altitude / 180), 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
@@ -1677,7 +1648,7 @@ function soldier(ctx, p, t = Date.now(), mode = 'teams') {
     ctx.lineWidth = 1.8;
     ctx.setLineDash([6, 5]);
     ctx.beginPath();
-    ctx.arc(0, 0, 24, auraRot, auraRot + Math.PI * 2);
+    ctx.arc(0, 0, isDuel ? 49 : 24, auraRot, auraRot + Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.restore();
@@ -1686,7 +1657,7 @@ function soldier(ctx, p, t = Date.now(), mode = 'teams') {
   // Halo de selección
   if (p.id === selected) {
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(0, 0, 26, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, isDuel ? 52 : 26, 0, Math.PI * 2); ctx.stroke();
   }
 
   // Burbuja de escudo (efecto multicapa ligero sin shadowBlur)
@@ -1694,9 +1665,9 @@ function soldier(ctx, p, t = Date.now(), mode = 'teams') {
     const pulse = 0.72 + 0.28 * Math.sin(t / 110);
     ctx.save(); ctx.globalAlpha = pulse;
     ctx.strokeStyle = 'rgba(0, 200, 255, 0.35)'; ctx.lineWidth = 6;
-    ctx.beginPath(); ctx.arc(0, 0, 27, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, isDuel ? 55 : 27, 0, Math.PI * 2); ctx.stroke();
     ctx.strokeStyle = '#40e8ff'; ctx.lineWidth = 2.2;
-    ctx.beginPath(); ctx.arc(0, 0, 27, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, isDuel ? 55 : 27, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
   }
 
@@ -1718,7 +1689,6 @@ function soldier(ctx, p, t = Date.now(), mode = 'teams') {
   
   // ── Selección de Estado y Fotograma del Sprite ────────────────────────────
   const isKnight = !!(p.isKnight || (p.classLevel && p.classLevel >= 10));
-  const isDuel = mode === 'duel';
   const isFrenzy = (p.frenzyTimer || 0) > 0;
 
   const attackAge = t - anim.attackTime;
@@ -1922,6 +1892,13 @@ function soldier(ctx, p, t = Date.now(), mode = 'teams') {
   }
 
   ctx.restore(); // Fin orientación y escala caballero
+
+  // El HUD superior ya muestra vida, postura y furia en el duelo. Omitir las
+  // etiquetas locales deja la silueta grande y limpia, como en un fighter 2D.
+  if (isDuel) {
+    ctx.restore();
+    return;
+  }
 
   // ── BARRAS DE ESTADO (HP, Armadura, Nombre) EN COORDENADAS LOCALES ───────
   const bw = 32, bh = 4;
@@ -2172,10 +2149,8 @@ function draw(ctx, s, w, h) {
     ctx.fillRect(0, 0, w, h);
     ctx.save();
     ctx.scale(w / 1200, h / 760);
-    // Cámara de duelo de gladiadores: zoom cinematográfico 1.85x
-    ctx.translate(600, 380);
-    ctx.scale(1.85, 1.85);
-    ctx.translate(-600, -380);
+    // Cámara lateral fija: todo el escenario y ambos campeones permanecen
+    // visibles, con el HUD fuera del mundo de combate.
     duelTerrain(ctx, 1200, 760, t);
   } else {
     terrain(ctx, w, h);
@@ -2229,13 +2204,14 @@ function draw(ctx, s, w, h) {
       // Resplandor exterior rápido con alpha (sin shadowBlur pesado)
       ctx.strokeStyle=c1; ctx.lineWidth=e.weapon==='legend'?10:e.weapon==='royal'?7:5;
       ctx.globalAlpha=alpha * 0.35;
-      ctx.beginPath(); ctx.arc(e.x,e.y,40,angle-1.0,angle+1.0); ctx.stroke();
+      const slashY = e.y - (s.mode === 'duel' ? 72 : 0);
+      ctx.beginPath(); ctx.arc(e.x,slashY,s.mode === 'duel'?72:40,angle-1.0,angle+1.0); ctx.stroke();
       // Núcleo brillante
       ctx.globalAlpha=alpha;
       ctx.strokeStyle=c1; ctx.lineWidth=e.weapon==='legend'?5:e.weapon==='royal'?3.5:2.5;
-      ctx.beginPath(); ctx.arc(e.x,e.y,40,angle-0.85,angle+0.85); ctx.stroke();
+      ctx.beginPath(); ctx.arc(e.x,slashY,s.mode === 'duel'?72:40,angle-0.85,angle+0.85); ctx.stroke();
       ctx.strokeStyle=c2; ctx.lineWidth=1.5;
-      ctx.beginPath(); ctx.arc(e.x,e.y,40,angle-0.5,angle+0.5); ctx.stroke();
+      ctx.beginPath(); ctx.arc(e.x,slashY,s.mode === 'duel'?72:40,angle-0.5,angle+0.5); ctx.stroke();
     } else if (e.kind==='meteor') {
       const progress=1-e.life/e.max;
       if (progress >= 0.84 && !e.impacted) {
@@ -2285,18 +2261,19 @@ function draw(ctx, s, w, h) {
       ctx.font = 'bold 11px sans-serif';
       ctx.textAlign = 'center';
       ctx.strokeStyle = '#000000'; ctx.lineWidth = 2.0;
-      ctx.strokeText(e.text, e.x, e.y - rise);
+      const textY = e.y - rise - (s.mode === 'duel' ? 54 : 0);
+      ctx.strokeText(e.text, e.x, textY);
       ctx.fillStyle = e.color || '#ffffff';
-      ctx.fillText(e.text, e.x, e.y - rise);
+      ctx.fillText(e.text, e.x, textY);
       ctx.textAlign = 'left';
     } else if (e.kind==='clash_spark') {
       const prog = 1 - e.life / e.max;
       for (let j = 0; j < 6; j++) {
         const sa = (j / 6) * Math.PI * 2 + prog * 2.5;
         const sDist = prog * 26;
-        circle(ctx, e.x + Math.cos(sa) * sDist, e.y + Math.sin(sa) * sDist, 2.2, '#ffe066');
+        circle(ctx, e.x + Math.cos(sa) * sDist, e.y - (s.mode === 'duel' ? 68 : 0) + Math.sin(sa) * sDist, 2.2, '#ffe066');
       }
-      circle(ctx, e.x, e.y, Math.max(1, 8 * (1 - prog)), '#ffffff');
+      circle(ctx, e.x, e.y - (s.mode === 'duel' ? 68 : 0), Math.max(1, 8 * (1 - prog)), '#ffffff');
     }
     ctx.restore();
   }
@@ -2464,10 +2441,6 @@ if ($('#arena')) {
     const cy = ((e.clientY - r.top) / r.height) * 760;
     let worldX = cx;
     let worldY = cy;
-    if (state.mode === 'duel') {
-      worldX = 600 + (cx - 600) / 1.85;
-      worldY = 380 + (cy - 380) / 1.85;
-    }
     const hovered = state.players.find(p => p.hp > 0 && Math.hypot(p.x - worldX, p.y - worldY) < 32);
     mouseAim = {
       worldX, worldY,
@@ -2486,10 +2459,6 @@ if ($('#arena')) {
     const r = e.target.getBoundingClientRect();
     let x = ((e.clientX - r.left) / r.width) * 1200;
     let y = ((e.clientY - r.top) / r.height) * 760;
-    if (state.mode === 'duel') {
-      x = 600 + (x - 600) / 1.85;
-      y = 380 + (y - 380) / 1.85;
-    }
     const p = state.players.reduce((a, b) => (!a || Math.hypot(b.x - x, b.y - y) < Math.hypot(a.x - x, a.y - y) ? b : a), null);
     if (p) {
       selected = p.id;
