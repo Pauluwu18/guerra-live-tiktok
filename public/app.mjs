@@ -110,11 +110,17 @@ function action(el, fn) {
 }
 
 function show(name) {
+  if (screen === 'settings' && name !== 'settings') {
+    releaseCatalogImages();
+    $('#giftNames').replaceChildren();
+  }
   screen = name;
   $$('.screen').forEach(e => e.classList.toggle('hidden', e.id !== name));
   if (name === 'settings') {
     draft = structuredClone(state?.config || defaults);
     renderSettings();
+    renderGiftDatalist();
+    renderCatalog();
   }
   window.scrollTo(0, 0);
 }
@@ -172,8 +178,8 @@ const combatFields = [
   ['magicInterval', 'Intervalo habilidad mágica (segundos)'],
   ['meteorDamage', 'Daño del Meteorito de Galaxia'],
   ['reviveHealth', 'Vida otorgada al revivir'],
-  ['bossHealth', 'Vida de la Torre del Jefe'],
-  ['bossDamage', 'Daño de la Torre del Jefe'],
+  ['bossHealth', 'Vida del Werebear ancestral'],
+  ['bossDamage', 'Daño del Werebear ancestral'],
   ['roundSeconds', 'Duración de ronda (segundos)'],
   ['shieldSeconds', 'Duración de escudo (s)'],
   ['maxShieldSeconds', 'Máximo de escudo (s; luego 6s de recarga)'],
@@ -431,9 +437,9 @@ action($('#disconnect'), () => api('disconnect'));
 async function loadCatalog() {
   try {
     catalog = await (await fetch(assetUrl('/gifts.json'))).json();
-    $('#giftNames').innerHTML = [...new Set(catalog.gifts.map(g => g.name))].map(n => `<option value="${esc(n)}">`).join('');
+    if (screen === 'settings') renderGiftDatalist();
     $('#catalogInfo').textContent = `${catalog.gifts.length} regalos registrados · ${catalog.region} · Precios de referencia del catálogo local; confirma en tu LIVE.`;
-    renderCatalog();
+    if (screen === 'settings') renderCatalog();
     renderSimOptions();
     if (state) $('#rewards').innerHTML = rewardRows(state.config);
     renderOverlayPreview();
@@ -445,6 +451,17 @@ async function loadCatalog() {
 }
 
 let catalogPageIndex = 0;
+let catalogOptionsCache = [];
+let catalogOptionsSource = null;
+let allGiftOptionsCache = [];
+let allGiftOptionsKey = '';
+const SIM_OPTION_LIMIT = 80;
+let pinnedSimGiftKey = '';
+function renderGiftDatalist() {
+  const root = $('#giftNames');
+  if (!root || !catalog.gifts?.length || root.children.length) return;
+  root.innerHTML = [...new Set(catalog.gifts.map(g => g.name))].map(n => `<option value="${esc(n)}">`).join('');
+}
 function giftImage(g, eager = false) {
   return `<img class="gift-image" src="${esc(assetUrl(safeImage(g)))}" alt="${esc(g.name)}" loading="${eager ? 'eager' : 'lazy'}" decoding="async" width="64" height="64" referrerpolicy="no-referrer">`;
 }
@@ -453,12 +470,34 @@ function bindImageFallback(root) {
     img.onerror = () => { img.onerror = null; img.src = assetUrl('/assets/gifts/unavailable.svg'); img.alt += ' — imagen no disponible'; };
   });
 }
-function currentOptions() { return giftOptions(catalog.gifts, state?.config.rules || defaults.rules); }
+function baseCatalogOptions() {
+  if (catalogOptionsSource !== catalog.gifts) {
+    catalogOptionsSource = catalog.gifts;
+    catalogOptionsCache = giftOptions(catalog.gifts);
+    allGiftOptionsKey = '';
+  }
+  return catalogOptionsCache;
+}
+function currentOptions() {
+  const rules = state?.config.rules || defaults.rules;
+  const key = rules.map(r => `${giftKey(r.gift)}:${r.quantity}:${r.action}`).join('|');
+  if (key !== allGiftOptionsKey) {
+    allGiftOptionsKey = key;
+    allGiftOptionsCache = giftOptions(catalog.gifts, rules);
+  }
+  return allGiftOptionsCache;
+}
+function releaseCatalogImages() {
+  const root = $('#catalogList');
+  if (!root) return;
+  root.querySelectorAll('img').forEach(img => { img.onerror = null; img.removeAttribute('src'); });
+  root.replaceChildren();
+}
 function selectedGift() { return currentOptions().find(g => g.key === $('#simGift').value); }
 function mappedRule(g) { return (state?.config.rules || defaults.rules).find(r => giftKey(r.gift) === giftKey(g.name)); }
 function renderCatalog() {
   const rules = state?.config.rules || defaults.rules;
-  const list = filterGifts(giftOptions(catalog.gifts), $('#searchGift').value, $('#catalogSort').value, $('#catalogMapped').checked, rules);
+  const list = filterGifts(baseCatalogOptions(), $('#searchGift').value, $('#catalogSort').value, $('#catalogMapped').checked, rules);
   const page = giftPage(list, catalogPageIndex); catalogPageIndex = page.page;
   $('#catalogList').innerHTML = page.items.length ? page.items.map(g => `
     <article class="gift-card">
@@ -474,7 +513,9 @@ function renderCatalog() {
   $('#catalogNext').disabled = page.page + 1 >= page.pages;
   $('#catalogList').querySelectorAll('[data-test-gift]').forEach(button => {
     button.onclick = () => {
-      $('#simGiftSearch').value = ''; renderSimOptions();
+      $('#simGiftSearch').value = '';
+      pinnedSimGiftKey = button.dataset.testGift;
+      renderSimOptions();
       $('#simGift').value = button.dataset.testGift; renderSimPreview();
       show('battle');
       $('#simFeedback').textContent = 'Regalo seleccionado. Revisa la cantidad y pulsa Simular regalo.';
@@ -486,11 +527,17 @@ function renderCatalog() {
 function renderSimOptions() {
   const previous = $('#simGift').value;
   const all = currentOptions();
-  const list = filterGifts(all, $('#simGiftSearch').value);
+  const matches = filterGifts(all, $('#simGiftSearch').value);
+  const list = matches.slice(0, SIM_OPTION_LIMIT);
+  const keepKey = pinnedSimGiftKey || previous;
+  const keep = matches.find(g => g.key === keepKey) || all.find(g => g.key === keepKey);
+  if (keep && !list.some(g => g.key === keep.key)) list.push(keep);
   $('#simGift').innerHTML = list.map(g => `<option value="${esc(g.key)}">${esc(g.name)} · ${g.coins === null ? 'canje personalizado' : g.coins + ' monedas'}${mappedRule(g) ? ' · con canje' : ''}</option>`).join('');
   if (list.some(g => g.key === previous)) $('#simGift').value = previous;
   else if (!$('#simGiftSearch').value) $('#simGift').value = list.find(g => giftKey(g.name) === 'rosa')?.key || list[0]?.key || '';
-  $('#simGiftCount').textContent = `${list.length} de ${all.length} regalos disponibles`;
+  $('#simGiftCount').textContent = matches.length > list.length
+    ? `${matches.length} coincidencias · mostrando ${list.length}; escribe el nombre para acotar`
+    : `${matches.length} de ${all.length} regalos disponibles`;
   renderSimPreview();
 }
 function renderSimPreview() {
@@ -510,7 +557,7 @@ $('#searchGift').oninput = () => { catalogPageIndex = 0; renderCatalog(); };
 $('#catalogSort').onchange = $('#catalogMapped').onchange = () => { catalogPageIndex = 0; renderCatalog(); };
 $('#catalogPrev').onclick = () => { catalogPageIndex--; renderCatalog(); };
 $('#catalogNext').onclick = () => { catalogPageIndex++; renderCatalog(); };
-$('#simGiftSearch').oninput = renderSimOptions;
+$('#simGiftSearch').oninput = () => { pinnedSimGiftKey = ''; renderSimOptions(); };
 $('#simGift').onchange = $('#simCount').oninput = renderSimPreview;
 $$('[data-quantity]').forEach(button => { button.onclick = () => { $('#simCount').value = button.dataset.quantity; renderSimPreview(); }; });
 action($('#simStart'), async () => { await api('start',{mode:'teams'}); show('battle'); });
@@ -604,9 +651,10 @@ function handleState(newState) {
   const nextConfig = JSON.stringify([c, state.live.user, state.mode]);
   if (configFingerprint !== nextConfig) {
     configFingerprint = nextConfig;
+    allGiftOptionsKey = '';
     $('#rewards').innerHTML = rewardRows(c);
     renderSimOptions();
-    renderCatalog();
+    if (screen === 'settings') renderCatalog();
     const mult = (c.damagePercent / 100).toFixed(1);
     $('#like').textContent = `♥ +${c.likesStep} likes`;
 
@@ -1002,6 +1050,14 @@ function loadPack(key, dict = spritePacks) {
   const img = new Image();
   img.onload = () => {
     pack.jade = img;
+    // El jefe solo usa una paleta. Evitar una copia completa de cada una de
+    // sus siete hojas animadas ahorra varios MB de RAM y tiempo de arranque.
+    if (dict === werebearPacks) {
+      pack.coral = null;
+      pack.ready = true;
+      updateSpriteCredits();
+      return;
+    }
     try {
       const res = processSheetColors(img);
       pack.coral = res.coral || img;
@@ -1947,6 +2003,7 @@ const bossAnim = {
   ry: 380,
   walkTime: 0
 };
+const actorDrawOrder = [];
 
 function werebear(ctx, bss, t = Date.now()) {
   if (!bss) return;
@@ -2015,18 +2072,19 @@ function werebear(ctx, bss, t = Date.now()) {
   ctx.save();
   ctx.translate(bossAnim.rx, bossAnim.ry + hopY);
 
-  // 1. Sombra masiva del Werebear
+  // Los pies del sprite caen sobre el origen del mundo. La sombra comparte
+  // ese punto para que el jefe no parezca suspendido.
   ctx.save();
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
   ctx.beginPath();
-  const shadowScale = hopY < 0 ? Math.max(0.6, 1 + hopY / 40) : 1;
-  ctx.ellipse(0, 18, 70 * shadowScale, 26 * shadowScale, 0, 0, Math.PI * 2);
+  const shadowScale = hopY < 0 ? Math.max(0.65, 1 + hopY / 70) : 1;
+  ctx.ellipse(0, 4, 42 * shadowScale, 13 * shadowScale, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
-  // 2. Orientación y escala titánica
+  // Escala grande, pero coherente con la caja física de 38 px del motor.
   const facingLeft = Math.cos(bss.angle ?? Math.PI) < 0;
-  const scale = 3.2; // TAMAÑO COLOSAL
+  const scale = 3.15;
   ctx.scale((facingLeft ? -1 : 1) * scale, scale);
 
   if (sheet) {
@@ -2043,12 +2101,12 @@ function werebear(ctx, bss, t = Date.now()) {
 
   ctx.restore();
 
-  // 3. Barra de vida y estado superior colosal
+  // Barra compacta: sigue al cuerpo sin tapar a los jugadores cercanos.
   ctx.save();
-  ctx.translate(bossAnim.rx, bossAnim.ry - 130);
+  ctx.translate(bossAnim.rx, bossAnim.ry - 92);
 
-  const barW = 200;
-  const barH = 13;
+  const barW = 156;
+  const barH = 10;
   const barY = 0;
 
   ctx.fillStyle = '#080101';
@@ -2067,12 +2125,12 @@ function werebear(ctx, bss, t = Date.now()) {
   ctx.lineWidth = 2;
   ctx.strokeRect(-barW / 2, barY, barW, barH);
 
-  ctx.font = 'bold 12px sans-serif';
+  ctx.font = 'bold 11px sans-serif';
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
   ctx.shadowColor = '#000';
   ctx.shadowBlur = 4;
-  ctx.fillText(`👹 WEREBEAR ANCESTRAL · ${Math.ceil(bss.hp).toLocaleString()} HP`, 0, barY - 8);
+  ctx.fillText(`👹 WEREBEAR · FASE ${bss.phase || 1} · ${Math.ceil(bss.hp).toLocaleString()} HP`, 0, barY - 8);
   ctx.shadowBlur = 0;
 
   if (currentAction === 'attack02') {
@@ -2125,11 +2183,6 @@ function draw(ctx, s, w, h) {
     ctx.scale(w / 1200, h / 760);
   }
 
-  // Jefe Werebear Ancestral
-  if (s.mode === 'boss' && s.boss) {
-    try { werebear(ctx, s.boss, t); } catch (e) { /* fallback seguro */ }
-  }
-
   // Cráteres
   for (const e of s.effects||[]) {
     if (e.kind !== 'crater') continue;
@@ -2147,10 +2200,17 @@ function draw(ctx, s, w, h) {
       try { soldier(ctx, p, t, s.mode); } catch (e) { /* fallback seguro */ }
     }
   }
-  for (const p of s.players) {
-    if (p.hp > 0) {
-      try { soldier(ctx, p, t, s.mode); } catch (e) { /* fallback seguro */ }
-    }
+  // Orden vertical sin crear una matriz nueva en cada frame. El jefe puede
+  // quedar delante o detrás de los soldados según su posición en la arena.
+  actorDrawOrder.length = 0;
+  for (const p of s.players) if (p.hp > 0) actorDrawOrder.push(p);
+  if (s.mode === 'boss' && s.boss) actorDrawOrder.push(s.boss);
+  actorDrawOrder.sort((a, b) => a.y - b.y);
+  for (const actor of actorDrawOrder) {
+    try {
+      if (actor.id === 'boss') werebear(ctx, actor, t);
+      else soldier(ctx, actor, t, s.mode);
+    } catch (e) { /* fallback seguro */ }
   }
 
   // Efectos visuales y de sonido
@@ -2191,6 +2251,15 @@ function draw(ctx, s, w, h) {
       ctx.strokeStyle=grad; ctx.lineWidth=18;
       ctx.beginPath(); ctx.moveTo(cx2-60,cy2-90); ctx.lineTo(cx2,cy2); ctx.stroke();
       circle(ctx,cx2,cy2,19,'#ff4400'); circle(ctx,cx2,cy2,12,'#ffaa00'); circle(ctx,cx2,cy2,6,'#ffffcc');
+    } else if (e.kind==='warning_ring') {
+      const pulse = 0.55 + Math.sin(t / 55) * 0.2;
+      ctx.globalAlpha = alpha * pulse;
+      ctx.fillStyle = e.team ? 'rgba(255,55,25,0.14)' : 'rgba(255,210,45,0.14)';
+      ctx.strokeStyle = e.team ? '#ff4a2c' : '#ffd040';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([12, 8]);
+      ctx.beginPath(); ctx.arc(e.x, e.y, e.radius || 145, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.setLineDash([]);
     } else if (e.kind==='blast') {
       const rad=(1-e.life/e.max)*(e.radius||220)+12;
       // Anillo expansivo exterior
@@ -2475,4 +2544,3 @@ $$('.sound-btn').forEach(btn => {
 });
 
 loadCatalog().catch(() => toast('No se pudo cargar el catálogo de regalos'));
-

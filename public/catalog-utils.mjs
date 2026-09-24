@@ -1,5 +1,7 @@
 import {giftKey} from './engine.mjs';
-export const PAGE_SIZE=24;
+// Mantiene pocas imágenes decodificadas a la vez. El catálogo completo sigue
+// accesible mediante búsqueda y paginación.
+export const PAGE_SIZE=18;
 const normalize=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 export function giftOptions(gifts,rules=[]) {
   const result=gifts.map((g,index)=>({...g,key:String(index),index}));
@@ -24,4 +26,3 @@ export function safeImage(gift) {
   const image=gift?.image || gift?.imageUrl || '';
   return /^\/assets\/gifts\/[a-zA-Z0-9_.-]+$/.test(image) || /^https:\/\//i.test(image) ? image : '/assets/gifts/unavailable.svg';
 }
-

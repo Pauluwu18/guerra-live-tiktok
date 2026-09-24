@@ -131,6 +131,8 @@ export function giftKey(name) {
 const boundedCount = (n, fallback = 1) => Number.isFinite(Number(n))
   ? Math.max(0, Math.min(100000, Math.floor(Number(n)))) : fallback;
 export const MAX_EFFECTS = 160;
+export const BOSS_BODY_RADIUS = 38;
+export const BOSS_PLAYER_RANGE = 70;
 export function validConfig(raw = {}) {
   if (!raw || typeof raw !== 'object') raw = {};
   const c = structuredClone(defaults);
@@ -370,7 +372,12 @@ export class Battle {
       cd02: 2.0,
       cd03: 0.8,
       hurtTimer: 0,
-      hitTriggered: false
+      hitTriggered: false,
+      targetId: null,
+      targetTimer: 0,
+      aggroId: null,
+      aggroTimer: 0,
+      phase: 1
     };
 
     const active = new Set(this.players.map(p => p.id));
@@ -400,7 +407,7 @@ export class Battle {
         ? '⚔ ¡DUELO DE CAMPEONES 1 VS 1 — El ganador obtiene +1% vida y daño y busca contrincante!'
         : mode === 'teams'
         ? '⚔ ¡GUERRA DE FACCIONES 20 VS 20 — primer equipo en 10 000 pts gana!'
-        : '🏰 Asalto a la Torre del Jefe en bucle'
+        : '🐻 Asalto al Werebear ancestral en bucle'
     );
   }
 
@@ -820,6 +827,10 @@ export class Battle {
     const finalHpLoss = damage - absorbed;
     target.hp = Math.max(0, target.hp - finalHpLoss);
     if (target === this.boss && this.boss.action !== 'death') {
+      if (source?.id && source.id !== 'boss') {
+        this.boss.aggroId = source.id;
+        this.boss.aggroTimer = 2.5;
+      }
       if (opts.isSuper || damage >= 100) {
         this.boss.hurtTimer = 0.35;
       }
@@ -1051,7 +1062,10 @@ export class Battle {
         p.x += (control.x / l) * 110 * dt;
         p.y += (control.y / l) * 110 * dt;
       } else {
-        const desired = this.mode === 'boss' ? 95 : 46;
+        // Tres anillos de asedio: evitan que 30 soldados ocupen el mismo píxel
+        // y dejan visible al jefe. Solo el anillo interior ataca cuerpo a cuerpo.
+        const bossRing = this.mode === 'boss' ? (Number(p.id.slice(1)) || 0) % 3 : 0;
+        const desired = this.mode === 'boss' ? BOSS_BODY_RADIUS + 14 + bossRing * 22 : 46;
 
         // Retirada táctica / repliegue defensivo si vida es crítica en 20vs20
         const isCriticalHp = this.mode === 'teams' && p.hp < (p.maxHp * 0.24) && p.cd > 0.35;
@@ -1126,8 +1140,24 @@ export class Battle {
         p.wander.oy += 2.0;
       }
 
+      // El cuerpo del jefe tiene una caja pequeña y visible. Evita que los
+      // soldados se escondan dentro del sprite sin empujarlos desde muy lejos.
+      if (this.mode === 'boss' && this.boss?.hp > 0) {
+        const bx = p.x - this.boss.x;
+        const by = p.y - this.boss.y;
+        const rawDistance = Math.hypot(bx, by);
+        const fallbackAngle = ((Number(p.id.slice(1)) || 1) * 2.39996) % (Math.PI * 2);
+        const ux = rawDistance > 0.001 ? bx / rawDistance : Math.cos(fallbackAngle);
+        const uy = rawDistance > 0.001 ? by / rawDistance : Math.sin(fallbackAngle);
+        const bd = rawDistance;
+        if (bd < BOSS_BODY_RADIUS) {
+          p.x = this.boss.x + ux * BOSS_BODY_RADIUS;
+          p.y = this.boss.y + uy * BOSS_BODY_RADIUS;
+        }
+      }
+
       // ── Ataque cuerpo a cuerpo ─────────────────────────────────────────
-      const range = this.mode === 'boss' ? 120 : 65;
+      const range = this.mode === 'boss' ? BOSS_PLAYER_RANGE : 65;
       if (dist < range && p.cd <= 0 && (p.stunTimer || 0) <= 0) {
         const isFrenzy = (p.frenzyTimer || 0) > 0;
         p.cd = isFrenzy ? 0.42 : (p.weapon === 'legend' ? 0.7 : p.weapon === 'royal' ? 0.9 : 1.1);
@@ -1166,8 +1196,12 @@ export class Battle {
         this.boss.cd03 = (this.boss.cd03 || 0) - dt;
         this.boss.actionTimer = (this.boss.actionTimer || 0) - dt;
         this.boss.hurtTimer = (this.boss.hurtTimer || 0) - dt;
+        this.boss.targetTimer = (this.boss.targetTimer || 0) - dt;
+        this.boss.aggroTimer = Math.max(0, (this.boss.aggroTimer || 0) - dt);
+        this.boss.phase = this.boss.hp <= this.boss.maxHp * 0.35 ? 3
+          : this.boss.hp <= this.boss.maxHp * 0.7 ? 2 : 1;
 
-        const livingJade = living.filter(p => p.team === 0);
+        const livingJade = living.filter(p => p.team === 0 && p.hp > 0);
 
         if (livingJade.length) {
           let closest = null;
@@ -1181,13 +1215,36 @@ export class Battle {
             }
           }
 
-          if (closest) {
-            this.boss.angle = Math.atan2(closest.y - this.boss.y, closest.x - this.boss.x);
+          // Reacciona al combate: durante unos segundos persigue a quien lo
+          // golpeó; después cambia de objetivo según distancia, jugadores
+          // reales y grupos amontonados. Solo recalcula dos veces por segundo.
+          let target = this.boss.aggroTimer > 0
+            ? livingJade.find(p => p.id === this.boss.aggroId)
+            : livingJade.find(p => p.id === this.boss.targetId);
+          if (!target || (this.boss.aggroTimer <= 0 && this.boss.targetTimer <= 0)) {
+            let bestScore = Infinity;
+            for (const candidate of livingJade) {
+              const d = Math.hypot(candidate.x - this.boss.x, candidate.y - this.boss.y);
+              let nearby = 0;
+              for (const ally of livingJade) {
+                if (ally !== candidate && Math.hypot(ally.x - candidate.x, ally.y - candidate.y) < 95) nearby++;
+              }
+              const score = d - nearby * 22 - (candidate.bot ? 0 : 45);
+              if (score < bestScore) { bestScore = score; target = candidate; }
+            }
+            this.boss.targetId = target?.id || null;
+            this.boss.targetTimer = 0.5;
+          }
+
+          if (target || closest) {
+            target ||= closest;
+            minDist = Math.hypot(target.x - this.boss.x, target.y - this.boss.y);
+            this.boss.angle = Math.atan2(target.y - this.boss.y, target.x - this.boss.x);
 
             if (this.boss.actionTimer > 0) {
               if (this.boss.action === 'attack02' && !this.boss.hitTriggered && this.boss.actionTimer < 0.6) {
                 this.boss.hitTriggered = true;
-                const slamRadius = 220;
+                const slamRadius = 145;
                 for (let i = 0; i < livingJade.length; i++) {
                   const p = livingJade[i];
                   if (Math.hypot(p.x - this.boss.x, p.y - this.boss.y) < slamRadius) {
@@ -1204,39 +1261,41 @@ export class Battle {
                 this.boss.hitTriggered = true;
                 for (let i = 0; i < livingJade.length; i++) {
                   const p = livingJade[i];
-                  if (Math.hypot(p.x - this.boss.x, p.y - this.boss.y) < 140) {
+                  if (Math.hypot(p.x - this.boss.x, p.y - this.boss.y) < 92) {
                     this.hit(p, this.config.bossDamage * 1.3, this.boss);
                     this.effect({ kind: 'slash', x: p.x, y: p.y, tx: p.x + 10, ty: p.y + 10, weapon: 'legend', life: 0.35, max: 0.35 });
                   }
                 }
               } else if (this.boss.action === 'attack01' && !this.boss.hitTriggered && this.boss.actionTimer < 0.4) {
                 this.boss.hitTriggered = true;
-                if (Math.hypot(closest.x - this.boss.x, closest.y - this.boss.y) < 125) {
-                  this.hit(closest, this.config.bossDamage, this.boss);
-                  this.effect({ kind: 'slash', x: closest.x, y: closest.y, tx: closest.x, ty: closest.y + 15, weapon: 'steel', life: 0.3, max: 0.3 });
+                if (Math.hypot(target.x - this.boss.x, target.y - this.boss.y) < 78) {
+                  this.hit(target, this.config.bossDamage, this.boss);
+                  this.effect({ kind: 'slash', x: target.x, y: target.y, tx: target.x, ty: target.y + 15, weapon: 'steel', life: 0.3, max: 0.3 });
                 }
               }
             } else {
               this.boss.hitTriggered = false;
 
-              if (this.boss.cd02 <= 0 && minDist < 270) {
+              const phase = this.boss.phase || 1;
+              if (this.boss.cd02 <= 0 && livingJade.filter(p => Math.hypot(p.x - this.boss.x, p.y - this.boss.y) < 155).length >= 3) {
                 this.boss.action = 'attack02';
                 this.boss.actionTimer = 1.3;
-                this.boss.cd02 = 5.0;
+                this.boss.cd02 = phase === 3 ? 3.8 : 5.5;
                 this.boss.actionSeq = (this.boss.actionSeq || 0) + 1;
-              } else if (this.boss.cd03 <= 0 && minDist < 165) {
+                this.effect({ kind: 'warning_ring', x: this.boss.x, y: this.boss.y, radius: 145, life: 0.72, max: 0.72, team: 1 });
+              } else if (this.boss.cd03 <= 0 && minDist < 105) {
                 this.boss.action = 'attack03';
                 this.boss.actionTimer = 0.9;
-                this.boss.cd03 = 3.2;
+                this.boss.cd03 = phase === 3 ? 2.2 : 3.4;
                 this.boss.actionSeq = (this.boss.actionSeq || 0) + 1;
-              } else if (this.boss.cd01 <= 0 && minDist < 135) {
+              } else if (this.boss.cd01 <= 0 && minDist < 82) {
                 this.boss.action = 'attack01';
                 this.boss.actionTimer = 0.8;
                 this.boss.cd01 = 1.2;
                 this.boss.actionSeq = (this.boss.actionSeq || 0) + 1;
-              } else if (minDist > 80) {
+              } else if (minDist > 58) {
                 this.boss.action = 'walk';
-                const bossSpeed = 85;
+                const bossSpeed = phase === 3 ? 72 : phase === 2 ? 62 : 52;
                 this.boss.x += Math.cos(this.boss.angle) * bossSpeed * dt;
                 this.boss.y += Math.sin(this.boss.angle) * bossSpeed * dt;
 
@@ -1323,7 +1382,7 @@ export class Battle {
           this.roundDelay  = 4;
           const pts0 = this.score[0], pts1 = this.score[1];
           this.lastResult  = this.mode === 'boss'
-            ? (roundWinner === 0 ? '🏰 ¡Torre destruida! +1000 pts Aventureros' : '💀 ¡El jefe resiste! +1000 pts Torre')
+            ? (roundWinner === 0 ? '🐻 ¡Werebear derrotado! +1000 pts Aventureros' : '💀 ¡El Werebear resiste! +1000 pts Jefe')
             : `Ronda: ${names[roundWinner]} gana — ${names[0]} ${pts0} | ${names[1]} ${pts1} pts`;
         }
         this.note(this.lastResult);
