@@ -29,27 +29,45 @@ export const defaults = {
   autoFill: true,
   likeScope: 'individual',
   rules: [
-    { gift: 'Rose',      action: 'rose',   quantity: 1 },
-    { gift: 'Finger Heart', action: 'armor', quantity: 1 },
-    { gift: 'Doughnut',  action: 'revive', quantity: 1 },
-    { gift: 'Hand Heart',action: 'steel',  quantity: 1 },
-    { gift: 'Sunglasses',action: 'royal',  quantity: 1 },
-    { gift: 'Perfume',   action: 'magic',  quantity: 1 },
-    { gift: 'GG',        action: 'shield', quantity: 10 },
-    { gift: 'Galaxy',    action: 'meteor', quantity: 1 }
+    { gift: 'Rose',         action: 'rose',   actions: ['rose'],   quantity: 1 },
+    { gift: 'Finger Heart', action: 'armor',  actions: ['armor'],  quantity: 1 },
+    { gift: 'Doughnut',     action: 'revive', actions: ['revive'], quantity: 1 },
+    { gift: 'Hand Heart',   action: 'steel',  actions: ['steel'],  quantity: 1 },
+    { gift: 'Sunglasses',   action: 'royal',  actions: ['royal'],  quantity: 1 },
+    { gift: 'Perfume',      action: 'magic',  actions: ['magic'],  quantity: 1 },
+    { gift: 'GG',           action: 'shield', actions: ['shield'], quantity: 10 },
+    { gift: 'Galaxy',       action: 'meteor', actions: ['meteor'], quantity: 1 }
   ]
 };
 
 export const actionNames = {
   armor:  'Armadura',
-  revive: 'Revivir al instante',
   steel:  'Espada de acero',
   royal:  'Espada real',
   legend: 'Espada legendaria',
+  heal:   'Curar si está vivo',
+  frenzy: 'Frenesí temporal',
+  shield: 'Escudo',
+  damage: '+2 daño',
+  revive: 'Revivir al instante',
   magic:  'Magia temporal',
   meteor: 'Meteorito de Galaxia',
-  shield: 'Escudo protector',
-  rose:   'Rosa (+1% vida y salud llena | 20: Soldado Nivel 10 | +10: Frenesí)'
+  rose:   'Rosa (+1% vida y salud llena)'
+};
+
+export const actionIcons = {
+  armor:  '🛡️',
+  steel:  '⚔️',
+  royal:  '⚔️',
+  legend: '🔥',
+  heal:   '💚',
+  frenzy: '⚡',
+  shield: '🛡️',
+  damage: '🗡️',
+  revive: '✨',
+  magic:  '🔮',
+  meteor: '☄️',
+  rose:   '🌹'
 };
 
 export const limits = {
@@ -87,15 +105,32 @@ export function validConfig(raw = {}) {
   if (Array.isArray(raw.rules)) {
     c.rules = raw.rules
       .slice(0, 100)
-      .filter(r => r && typeof r.gift === 'string' && r.gift.trim() && actionNames[r.action])
-      .map(r => ({
-        gift:     r.gift.trim().slice(0, 100),
-        action:   r.action,
-        quantity: Math.max(1, Math.min(100000, Math.round(Number(r.quantity) || 1)))
-      }));
+      .filter(r => r && typeof r.gift === 'string' && r.gift.trim())
+      .map(r => {
+        let actions = [];
+        if (Array.isArray(r.actions)) {
+          actions = r.actions.filter(a => actionNames[a]);
+        } else if (typeof r.action === 'string' && actionNames[r.action]) {
+          actions = [r.action];
+        }
+        if (!actions.length && r.action && actionNames[r.action]) actions = [r.action];
+        if (!actions.length) actions = ['armor'];
+        const qty = Math.max(1, Math.min(100000, Math.round(Number(r.quantity) || 1)));
+        return {
+          gift:     r.gift.trim().slice(0, 100),
+          action:   actions[0],
+          actions:  actions,
+          quantity: qty
+        };
+      });
   }
   const gifts = new Set();
-  c.rules = c.rules.filter(r => { const key = giftKey(r.gift); if (gifts.has(key)) return false; gifts.add(key); return true; });
+  c.rules = c.rules.filter(r => {
+    const key = giftKey(r.gift) + ':' + r.quantity;
+    if (gifts.has(key)) return false;
+    gifts.add(key);
+    return true;
+  });
   c.steelDamage = Math.max(c.baseDamage, c.steelDamage);
   c.royalDamage = Math.max(c.steelDamage, c.royalDamage);
   c.legendDamage = Math.max(c.royalDamage, c.legendDamage);
@@ -579,15 +614,21 @@ export class Battle {
       for (let i = 0; i < this.config.rules.length; i++) {
         const r = this.config.rules[i];
         if (giftKey(r.gift) !== giftName) continue;
-        const key   = i + ':' + giftName;
+        const key   = i + ':' + giftName + ':' + r.quantity;
         const old   = p.gifts[key] || 0;
         const total = old + count;
         p.gifts[key] = total % r.quantity;
         const times  = Math.floor(total / r.quantity);
-        if (times > 0) { this.reward(p, r.action, times, r.gift); applied = true; }
-        else this.note(`${p.name}: ${total}/${r.quantity} ${r.gift}`);
+        if (times > 0) {
+          const actList = Array.isArray(r.actions) && r.actions.length ? r.actions : [r.action].filter(Boolean);
+          for (const act of actList) {
+            this.reward(p, act, times, r.gift);
+          }
+          applied = true;
+        } else {
+          this.note(`${p.name}: ${total}/${r.quantity} ${r.gift}`);
+        }
       }
-
 
       return applied;
     }
@@ -611,6 +652,25 @@ export class Battle {
         p.stunTimer = 0;
         this.note(`✨ ¡${p.name} revivió con ${giftName || 'regalo'}!`);
       } else p.revives = Math.min(c.maxRevives, p.revives + n);
+    }
+    if (action === 'heal') {
+      if (p.hp > 0) {
+        p.hp = p.maxHp;
+        this.effect({ kind: 'combat_text', text: '💚 Salud llena', x: p.x, y: p.y - 28, color: '#2ecc71', life: 1.2, max: 1.2 });
+        this.effect({ kind: 'magic_pulse', x: p.x, y: p.y, r: 40, life: 0.35, max: 0.35, team: p.team });
+        this.note(`💚 ¡${p.name} se curó por completo!`);
+      }
+    }
+    if (action === 'damage') {
+      p.flatDamage = (p.flatDamage || 0) + 2 * n;
+      this.effect({ kind: 'combat_text', text: `🗡️ +${2 * n} DAÑO`, x: p.x, y: p.y - 32, color: '#ff4757', life: 1.5, max: 1.5 });
+      this.note(`🗡️ ${p.name}: +${2 * n} daño`);
+    }
+    if (action === 'frenzy') {
+      p.frenzyMode = false;
+      p.frenzyTimer = Math.min(c.maxFrenzySeconds, (p.frenzyTimer || 0) + c.frenzySeconds * n);
+      this.effect({ kind: 'combat_text', text: '⚡ FRENESÍ', x: p.x, y: p.y - 36, color: '#ff9f43', life: 1.8, max: 1.8 });
+      this.note(`⚡ ${p.name}: frenesí activado (${p.frenzyTimer}s)`);
     }
     if (['steel','royal','legend'].includes(action)) {
       const rank = ['base', 'steel', 'royal', 'legend'];

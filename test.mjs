@@ -339,7 +339,34 @@ assert.equal(validConfig({ likesStep: 0 }).likesStep, 1);
   assert.equal(pDuel.frenzyTimer, 0, 'Expira a los 5 segundos');
 }
 
-console.log('✅ Pruebas base actualizadas: 19 grupos superados');
+// 20. Combinar múltiples acciones por regalo (Tags) y múltiples niveles por regalo
+{
+  const customConfig = validConfig({
+    rules: [
+      { gift: 'Rose', actions: ['armor', 'steel', 'heal', 'frenzy'], quantity: 20 },
+      { gift: 'Rose', actions: ['shield', 'damage'], quantity: 10 }
+    ]
+  });
+  assert.equal(customConfig.rules.length, 2, 'Admite 2 reglas con el mismo regalo y distinta cantidad');
+  const bTag = new Battle(customConfig);
+  bTag.start('teams');
+  bTag.event({ type: 'join', user: 'Lancelot', team: 0 });
+  const pL = bTag.players.find(x => x.name === 'Lancelot');
+  assert.ok(pL);
+
+  // 10 rosas activan escudo y daño
+  bTag.event({ type: 'gift', user: 'Lancelot', gift: 'Rose', count: 10 });
+  assert.equal(pL.shield, 3, 'Escudo activado por la regla de 10 rosas');
+  assert.equal(pL.flatDamage, 2, 'Daño +2 activado por la regla de 10 rosas');
+
+  // 20 rosas activan armadura, espada de acero, curar y frenesí
+  bTag.event({ type: 'gift', user: 'Lancelot', gift: 'Rose', count: 20 });
+  assert.equal(pL.weapon, 'steel', 'Espada de acero equipada');
+  assert.equal(pL.armor, 25, 'Armadura +25');
+  assert.equal(pL.frenzyTimer, 5, 'Frenesí activado por 5s');
+}
+
+console.log('✅ Pruebas base actualizadas: 20 grupos superados');
 console.log('   Despliegue táctico 20 vs 20, 1v1 táctico, Soldado Nivel 10 (+2 daño, +2 def, vida restablecida) y Ataque Frenesí');
 
 

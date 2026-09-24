@@ -1,4 +1,4 @@
-import { defaults, actionNames, validConfig, Battle, limits, giftKey } from './engine.mjs';
+import { defaults, actionNames, actionIcons, validConfig, Battle, limits, giftKey } from './engine.mjs';
 import {giftOptions, filterGifts, giftPage, safeImage} from './catalog-utils.mjs';
 
 const $ = s => document.querySelector(s);
@@ -206,25 +206,117 @@ function renderSettings() {
 }
 
 function renderRules() {
-  $('#rules').innerHTML = draft.rules.map((r, i) => `
+  $('#rules').innerHTML = draft.rules.map((r, i) => {
+    const acts = Array.isArray(r.actions) && r.actions.length ? r.actions : [r.action || 'armor'];
+    return `
     <div class="rule" data-index="${i}">
       <input aria-label="Regalo ${i + 1}" list="giftNames" value="${esc(r.gift)}" data-field="gift" placeholder="Nombre de regalo">
-      <input aria-label="Cantidad ${i + 1}" type="number" min="1" value="${r.quantity}" data-field="quantity">
-      <select aria-label="Recompensa ${i + 1}" data-field="action">
-        ${Object.entries(actionNames).map(([k, v]) => `<option value="${k}" ${k === r.action ? 'selected' : ''}>${v}</option>`).join('')}
-      </select>
-      <button aria-label="Eliminar canje ${i + 1}" data-remove="${i}">×</button>
+      <input aria-label="Cantidad ${i + 1}" type="number" min="1" max="100000" value="${r.quantity}" data-field="quantity">
+      <div class="rule-tags-container" data-rule-index="${i}">
+        <div class="rule-chips">
+          ${acts.map(a => `
+            <span class="tag-chip" data-action="${a}">
+              <span class="tag-icon">${actionIcons[a] || ''}</span>
+              <span class="tag-text">${esc(actionNames[a] || a)}</span>
+              <button type="button" class="tag-close" data-remove-action="${a}" aria-label="Quitar ${esc(actionNames[a] || a)}">×</button>
+            </span>
+          `).join('')}
+          <button type="button" class="tag-add-trigger" data-trigger-menu="${i}">
+            <span>+ Añadir regla</span>
+            <span class="tag-dropdown-arrow">▾</span>
+          </button>
+        </div>
+        <div class="tag-menu hidden" data-menu="${i}">
+          ${Object.entries(actionNames).map(([k, v]) => {
+            const isSelected = acts.includes(k);
+            return `
+              <button type="button" class="tag-menu-item ${isSelected ? 'selected' : ''}" data-choose-action="${k}">
+                <span>${actionIcons[k] || ''} ${esc(v)}</span>
+                ${isSelected ? '<span class="tag-menu-check">✓</span>' : ''}
+              </button>
+            `;
+          }).join('')}
+        </div>
+      </div>
+      <button class="rule-remove-btn" aria-label="Eliminar canje ${i + 1}" data-remove="${i}">×</button>
     </div>
-  `).join('');
+    `;
+  }).join('');
 
+  // Eliminar canje completo
   $$('[data-remove]').forEach(b => {
     b.onclick = () => {
       readDraft();
       draft.rules.splice(Number(b.dataset.remove), 1);
       renderRules();
+      renderOverlayPreview();
+    };
+  });
+
+  // Eliminar etiqueta individual
+  $$('.tag-close').forEach(b => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const ruleIndex = Number(b.closest('.rule').dataset.index);
+      const actionToRemove = b.dataset.removeAction;
+      readDraft();
+      const r = draft.rules[ruleIndex];
+      if (r) {
+        let acts = (r.actions || [r.action]).filter(a => a !== actionToRemove);
+        if (!acts.length) acts = ['armor'];
+        r.actions = acts;
+        r.action = acts[0];
+        renderRules();
+        renderOverlayPreview();
+      }
+    };
+  });
+
+  // Abrir / cerrar menú desplegable de acciones
+  $$('[data-trigger-menu]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const idx = btn.dataset.triggerMenu;
+      const menu = $(`.tag-menu[data-menu="${idx}"]`);
+      if (!menu) return;
+      const wasHidden = menu.classList.contains('hidden');
+      $$('.tag-menu').forEach(m => m.classList.add('hidden'));
+      if (wasHidden) menu.classList.remove('hidden');
+    };
+  });
+
+  // Seleccionar / alternar acción del menú
+  $$('.tag-menu-item').forEach(item => {
+    item.onclick = (e) => {
+      e.stopPropagation();
+      const ruleIndex = Number(item.closest('.rule').dataset.index);
+      const chosen = item.dataset.chooseAction;
+      readDraft();
+      const r = draft.rules[ruleIndex];
+      if (r) {
+        let current = [...(r.actions || [r.action])];
+        if (current.includes(chosen)) {
+          if (current.length > 1) {
+            current = current.filter(a => a !== chosen);
+          }
+        } else {
+          current.push(chosen);
+        }
+        r.actions = current;
+        r.action = current[0];
+        renderRules();
+        renderOverlayPreview();
+      }
     };
   });
 }
+
+// Cerrar menús al hacer clic fuera
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.rule-tags-container')) {
+    $$('.tag-menu').forEach(m => m.classList.add('hidden'));
+  }
+});
 
 function readDraft() {
   $$('[data-setting]').forEach(e => {
@@ -233,24 +325,38 @@ function readDraft() {
   });
   draft.likeScope = $('#likeScope').value;
   draft.autoFill = $('#autoFill').checked;
-  draft.rules = $$('.rule').map(el => ({
-    gift: el.querySelector('[data-field=gift]').value.trim(),
-    quantity: Number(el.querySelector('[data-field=quantity]').value),
-    action: el.querySelector('[data-field=action]').value
-  }));
+  draft.rules = $$('.rule').map((el, i) => {
+    const gift = el.querySelector('[data-field=gift]').value.trim();
+    const quantity = Number(el.querySelector('[data-field=quantity]').value);
+    const existingRule = draft.rules[i];
+    const actionsFromChips = Array.from(el.querySelectorAll('.tag-chip')).map(c => c.dataset.action).filter(a => actionNames[a]);
+    const actions = actionsFromChips.length ? actionsFromChips : (existingRule?.actions || [existingRule?.action || 'armor']);
+    return {
+      gift,
+      quantity,
+      action: actions[0] || 'armor',
+      actions: actions.length ? actions : ['armor']
+    };
+  });
 
   if (draft.rules.some(r => !r.gift || !Number.isFinite(r.quantity) || r.quantity < 1)) {
     throw Error('Cada canje necesita un regalo y una cantidad mayor que cero.');
   }
-  if (new Set(draft.rules.map(r => giftKey(r.gift))).size !== draft.rules.length) {
-    throw Error('No repitas el mismo regalo en dos reglas distintas.');
+  const seen = new Set();
+  for (const r of draft.rules) {
+    const key = giftKey(r.gift) + ':' + r.quantity;
+    if (seen.has(key)) {
+      throw Error(`No repitas el mismo regalo con la misma cantidad (${r.gift} ×${r.quantity}).`);
+    }
+    seen.add(key);
   }
 }
 
 action($('#addRule'), () => {
   readDraft();
-  draft.rules.push({ gift: 'Rose', quantity: 1, action: 'armor' });
+  draft.rules.push({ gift: 'Rose', quantity: 1, action: 'armor', actions: ['armor'] });
   renderRules();
+  renderOverlayPreview();
 });
 
 action($('#save'), async () => {
@@ -270,18 +376,22 @@ action($('#reset'), () => {
 });
 
 function rewardText(r, c) {
+  const acts = Array.isArray(r.actions) && r.actions.length ? r.actions : [r.action].filter(Boolean);
   const map = {
     armor: `+${c.armorGain} armadura (máx. ${c.armorCap})`,
     revive: `✨ Revivir: ${c.reviveHealth} HP (máx. ${c.maxRevives} reservas)`,
+    heal: `💚 Curar si está vivo (100%)`,
+    damage: `🗡️ +2 daño permanente`,
     steel: `🗡️ Espada de Acero (${c.steelDamage} daño)`,
     royal: `⚔️ Espada Real (${c.royalDamage} daño)`,
     legend: `🔥 Espada Legendaria (${c.legendDamage} daño)`,
     magic: `🔮 Magia ${c.magicSeconds}s (máx. ${c.maxMagicSeconds}s)`,
     meteor: `☄️ ${c.meteorDamage} daño en área (máx. 3 pendientes/bando)`,
     shield: `🛡️ Escudo ${c.shieldSeconds}s (máx. ${c.maxShieldSeconds}s; recarga 6s)`,
+    frenzy: `⚡ Frenesí ${c.frenzySeconds}s (máx. ${c.maxFrenzySeconds}s)`,
     rose: `🌹 +1% vida y salud llena; 20: Nv.10; cada 10 extra: frenesí ${c.frenzySeconds}s`
   };
-  return map[r.action] || actionNames[r.action] || r.action;
+  return acts.map(a => map[a] || (actionIcons[a] ? actionIcons[a] + ' ' : '') + (actionNames[a] || a)).join(' + ');
 }
 
 function likeSummary(c) {
